@@ -5,10 +5,11 @@ from keras.preprocessing.image import ImageDataGenerator
 from models.unet import custom_unet
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
+from metrics import iou
 
-def train(num_classes):
+def train(num_classes, path):
 
-    x, y = get_imgs_masks("")
+    x, y = get_imgs_masks(path)
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
     
     y_train = to_categorical(y_train, num_classes=num_classes)
@@ -46,13 +47,13 @@ def train(num_classes):
 
     model.compile(
         optimizer=Adam(), 
-        loss = 'categorical_crossentropy'#,
-        #metrics=[iou]
+        loss = 'categorical_crossentropy',
+        metrics=[iou]
     )
 
     history = model.fit_generator(
-        train_gen,
-        steps_per_epoch=1,
+        train_gen.flow(x_train, y_train, batch_size=4),
+        steps_per_epoch=len(x_train) / 4,
         epochs=20,
         validation_data=(x_val, y_val),
         callbacks=[callback_checkpoint]
