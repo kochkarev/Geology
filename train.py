@@ -6,8 +6,9 @@ from models.unet import custom_unet
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
 from metrics import iou
+from utils import plot_segm_history
 
-def train(num_classes, path):
+def train(num_classes, path, show_history=True):
 
     x, y = get_imgs_masks(path)
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
@@ -58,3 +59,6 @@ def train(num_classes, path):
         validation_data=(x_val, y_val),
         callbacks=[callback_checkpoint]
     )
+
+    if show_history:
+        plot_segm_history(history)
