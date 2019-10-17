@@ -7,8 +7,9 @@ from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
 from metrics import iou
 from utils import plot_segm_history
+import os
 
-def train(num_classes, path, show_history=True):
+def train(num_classes, num_layers, path, show_history=True):
 
     x, y = get_imgs_masks(path)
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
@@ -34,7 +35,7 @@ def train(num_classes, path, show_history=True):
         use_batch_norm=True,
         dropout=0.0,
         dropout_change_per_layer=0.0,
-        num_layers=2,
+        num_layers=num_layers,
         output_activation='softmax'
     )
 
@@ -62,3 +63,7 @@ def train(num_classes, path, show_history=True):
 
     if show_history:
         plot_segm_history(history)
+
+if __name__ == "__main__":
+    path = os.path.join("input", "dataset")
+    train(num_classes=4, num_layers=2, path=path)
