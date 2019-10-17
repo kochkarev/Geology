@@ -1,4 +1,4 @@
-from data_utils.load_data import get_imgs_masks
+from data_utils.load_data import get_imgs_masks, resize_imgs_masks
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
@@ -8,10 +8,16 @@ from keras.optimizers import Adam, SGD
 from metrics import iou
 from utils import plot_segm_history
 import os
+import numpy as np
 
 def train(num_classes, num_layers, path, show_history=True):
 
     x, y = get_imgs_masks(path)
+    x, y = resize_imgs_masks(num_layers, x, y)
+
+    x = np.asarray(x, dtype=np.float32) / 255 
+    y = np.asarray(y, dtype=np.float32)
+
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
     
     y_train = to_categorical(y_train, num_classes=num_classes)
