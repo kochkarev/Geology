@@ -56,3 +56,13 @@ def visualize_segmentation_dataset(path, n_classes):
         cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
         if cv2.waitKey(0) == 27: return
     cv2.destroyAllWindows()
+
+def compare_masks(truth, pred):
+
+    difference = cv2.subtract(truth, pred)
+
+    gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV |cv2.THRESH_OTSU)
+    difference[mask != 255] = [0, 0, 255]
+
+    return difference
