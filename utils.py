@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
+from data_utils.load_data import get_pairs_from_paths
 
 def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
@@ -24,3 +25,34 @@ def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_
     #plt.xticks(fontsize=35)
     plt.legend(losses, loc='center right', fontsize=15)
     plt.show()
+
+import random
+import cv2
+
+random.seed(0)
+class_colors = [(random.randint(0,255), random.randint(0,255), random.randint(0,255)) for _ in range(5000)]
+
+def visualize_segmentation_dataset(path, n_classes):
+
+    img_seg_pairs = get_pairs_from_paths(path)
+
+    colors = class_colors
+
+    print("Press any key to navigate. ")
+    for im_fn , seg_fn in img_seg_pairs :
+
+        img = cv2.imread(im_fn)
+        seg = cv2.imread(seg_fn)
+        print("Found the following classes" , np.unique(seg))
+
+        seg_img = np.zeros_like( seg )
+
+        for c in range(n_classes):
+            seg_img[:,:,0] += ((seg[:,:,0] == c) * (colors[c][0])).astype('uint8')
+            seg_img[:,:,1] += ((seg[:,:,0] == c) * (colors[c][1])).astype('uint8')
+            seg_img[:,:,2] += ((seg[:,:,0] == c) * (colors[c][2])).astype('uint8')
+
+        cv2.imshow("img" , cv2.resize(img, (0, 0), fx=0.2, fy=0.2))
+        cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
+        if cv2.waitKey(0) == 27: return
+    cv2.destroyAllWindows()

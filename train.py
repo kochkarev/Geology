@@ -10,7 +10,7 @@ from utils import plot_segm_history
 import os
 import numpy as np
 
-def train(num_classes, num_layers, path, show_history=True):
+def train(num_classes, num_layers, path, epochs, show_history=True):
 
     x, y = get_imgs_masks(path)
     x, y = resize_imgs_masks(num_layers, x, y)
@@ -62,7 +62,7 @@ def train(num_classes, num_layers, path, show_history=True):
     history = model.fit_generator(
         train_gen.flow(x_train, y_train, batch_size=4),
         steps_per_epoch=len(x_train) / 4,
-        epochs=20,
+        epochs=epochs,
         validation_data=(x_val, y_val),
         callbacks=[callback_checkpoint]
     )
@@ -72,4 +72,4 @@ def train(num_classes, num_layers, path, show_history=True):
 
 if __name__ == "__main__":
     path = os.path.join("input", "dataset")
-    train(num_classes=4, num_layers=2, path=path)
+    train(num_classes=4, num_layers=2, epochs=20, path=path)
