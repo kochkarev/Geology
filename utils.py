@@ -57,12 +57,22 @@ def visualize_segmentation_dataset(path, n_classes):
         if cv2.waitKey(0) == 27: return
     cv2.destroyAllWindows()
 
-def compare_masks(truth, pred):
+def compare_masks_red(truth, pred):
 
     difference = cv2.subtract(truth, pred)
 
     gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV |cv2.THRESH_OTSU)
+    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
     difference[mask != 255] = [0, 0, 255]
 
     return difference
+
+def compare_masks_rgb(truth, pred):
+
+    height = truth.shape[0]
+    width = truth.shape[1]
+    blank_image = np.zeros((height, width, 3), np.uint8) # BGR
+    blank_image[:,:,1] = np.copy(truth[:,:,0]) # Green
+    blank_image[:,:,2] = np.copy(pred[:,:,0]) # Red
+
+    return blank_image
