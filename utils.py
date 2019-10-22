@@ -45,7 +45,7 @@ def visualize_segmentation_dataset(path, n_classes):
         seg = cv2.imread(seg_fn)
         print("Found the following classes" , np.unique(seg))
 
-        seg_img = np.zeros_like( seg )
+        seg_img = np.zeros_like(seg)
 
         for c in range(n_classes):
             seg_img[:,:,0] += ((seg[:,:,0] == c) * (colors[c][0])).astype('uint8')
@@ -56,6 +56,18 @@ def visualize_segmentation_dataset(path, n_classes):
         cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
         if cv2.waitKey(0) == 27: return
     cv2.destroyAllWindows()
+
+def colorize_mask(mask, n_classes):
+
+    color_mask = np.zeros_like(mask)
+    colors = class_colors
+
+    for c in range(n_classes):
+            color_mask[:,:,0] += ((mask[:,:,0] == c) * (colors[c][0])).astype('uint8')
+            color_mask[:,:,1] += ((mask[:,:,0] == c) * (colors[c][1])).astype('uint8')
+            color_mask[:,:,2] += ((mask[:,:,0] == c) * (colors[c][2])).astype('uint8')
+
+    return color_mask
 
 def compare_masks_red(truth, pred):
 
@@ -69,10 +81,42 @@ def compare_masks_red(truth, pred):
 
 def compare_masks_rgb(truth, pred):
 
+    max1 = np.amax(truth)
+    max2 = np.amax(pred)
+
     height = truth.shape[0]
     width = truth.shape[1]
     blank_image = np.zeros((height, width, 3), np.uint8) # BGR
-    blank_image[:,:,1] = np.copy(truth[:,:,0]) # Green
-    blank_image[:,:,2] = np.copy(pred[:,:,0]) # Red
+    blank_image[:,:,1] = np.copy(np.multiply(truth[:,:,0], 255 / max1)) # Green
+    blank_image[:,:,2] = np.copy(np.multiply(pred[:,:,0], 255 / max2)) # Red
 
     return blank_image
+
+def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4):
+
+    cols = 2 if preds is None else 4
+
+    _, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
+    axes[0, 0].set_title("original", fontsize=15) 
+    axes[0, 1].set_title("ground truth", fontsize=15)
+    if not (preds is None):
+        axes[0, 2].set_title("prediction", fontsize=15) 
+        axes[0, 3].set_title("errors map", fontsize=15) 
+    
+    im_id = 0
+    for m in range(0, nm_img_to_plot):
+        axes[m, 0].imshow(images[im_id])
+        axes[m, 0].set_axis_off()
+        axes[m, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
+        axes[m, 1].set_axis_off()        
+        if not (preds is None):
+            axes[m, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
+            axes[m, 2].set_axis_off()
+            axes[m, 3].imshow(compare_masks_rgb(masks[im_id], preds[im_id]))
+            #axes[m, 3].imshow(compare_masks_red(masks[im_id], preds[im_id]))
+            axes[m, 3].set_axis_off()
+        im_id += 1
+
+    plt.show()
+    
+

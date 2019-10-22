@@ -10,7 +10,8 @@ def get_imgs_masks(path):
     masks_list = []
     for image, mask in zip(imgs, masks):
         imgs_list.append(np.array(Image.open(image)))
-        masks_list.append(np.array(Image.open(mask))[:,:,0])
+        #masks_list.append(np.array(Image.open(mask))[:,:,0])
+        masks_list.append(np.array(Image.open(mask)))
 
     return imgs_list, masks_list
 
