@@ -9,6 +9,7 @@ from metrics import iou
 from utils import plot_segm_history
 import os
 import numpy as np
+from callbacks import VisualizeResults
 
 def train(num_classes, num_layers, path, epochs, show_history=True):
 
@@ -59,12 +60,19 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         metrics=[iou]
     )
 
+    callback_visualize = VisualizeResults(
+        images=x_val, 
+        masks=y_val, 
+        model=model, 
+        n_classes=num_classes
+    )
+
     history = model.fit_generator(
         train_gen.flow(x_train, y_train, batch_size=4),
         steps_per_epoch=len(x_train) / 4,
         epochs=epochs,
         validation_data=(x_val, y_val),
-        callbacks=[callback_checkpoint]
+        callbacks=[callback_checkpoint, callback_visualize]
     )
 
     if show_history:
