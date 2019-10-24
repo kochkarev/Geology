@@ -44,7 +44,7 @@ def resize_imgs_masks(num_layers, imgs, masks):
     new_imgs = []
     new_masks = []
 
-    for img, mask in zip(imgs, masks):
+    for img, mask in zip(imgs, masks): #pad numpy TODO
         new_img = Image.new("RGB", (new_height, new_width))
         new_img.paste(Image.fromarray(img))
         new_mask = Image.new("RGB", (new_height, new_width))

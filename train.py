@@ -17,7 +17,10 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     x, y = resize_imgs_masks(num_layers, x, y)
 
     x = np.asarray(x, dtype=np.float32) / 255 
-    y = np.asarray(y, dtype=np.float32)
+    y = np.asarray(y, dtype=np.uint8)
+
+    print(x.shape)
+    print(y.shape)
 
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
     
@@ -25,12 +28,13 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     y_val = to_categorical(y_val, num_classes=num_classes)
 
     train_gen = ImageDataGenerator(
-        featurewise_center=True,
-        featurewise_std_normalization=True,
+        featurewise_center=False,
+        featurewise_std_normalization=False,
         rotation_range=20,
         width_shift_range=0.2,
         height_shift_range=0.2,
-        horizontal_flip=True
+        horizontal_flip=True,
+        vertical_flip=True
     )
 
     input_shape = x_train[0].shape
@@ -38,7 +42,7 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     model = custom_unet(
         input_shape,
         num_classes=num_classes,
-        filters=32,
+        filters=16,
         use_batch_norm=True,
         dropout=0.0,
         dropout_change_per_layer=0.0,
@@ -46,13 +50,13 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         output_activation='softmax'
     )
 
-    model_filename = 'segm_model_v1.h5'
-    callback_checkpoint = ModelCheckpoint(
-        model_filename, 
-        verbose=1, 
-        monitor='val_loss', 
-        save_best_only=True,
-    )
+    # model_filename = 'segm_model_v1.h5'
+    # callback_checkpoint = ModelCheckpoint(
+    #     model_filename, 
+    #     verbose=1, 
+    #     monitor='val_loss', 
+    #     save_best_only=True,
+    # )
 
     model.compile(
         optimizer=Adam(), 
@@ -60,19 +64,19 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         metrics=[iou]
     )
 
-    callback_visualize = VisualizeResults(
-        images=x_val, 
-        masks=y_val, 
-        model=model, 
-        n_classes=num_classes
-    )
+    # callback_visualize = VisualizeResults(
+    #     images=x_val, 
+    #     masks=y_val, 
+    #     model=model, 
+    #     n_classes=num_classes
+    # )
 
     history = model.fit_generator(
-        train_gen.flow(x_train, y_train, batch_size=4),
-        steps_per_epoch=len(x_train) / 4,
+        train_gen.flow(x_train, y_train, batch_size=2),
+        steps_per_epoch=len(x_train) / 2,
         epochs=epochs,
-        validation_data=(x_val, y_val),
-        callbacks=[callback_checkpoint, callback_visualize]
+        validation_data=(x_val, y_val)
+        #callbacks=[callback_checkpoint, callback_visualize]
     )
 
     if show_history:
