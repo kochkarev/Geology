@@ -38,16 +38,19 @@ def resize_imgs_masks(num_layers, imgs, masks):
     new_height = (height // k + 1) * k
     new_width = (width // k + 1) * k
 
+    print("Old height and width: {h} : {w}".format(h=height, w=width))
+    print("New height and width: {h} : {w}".format(h=new_height, w=new_width))
+
     new_imgs = []
     new_masks = []
 
     for img, mask in zip(imgs, masks):
         new_img = Image.new("RGB", (new_height, new_width))
-        new_img.paste(img)
+        new_img.paste(Image.fromarray(img))
         new_mask = Image.new("RGB", (new_height, new_width))
-        new_mask.paste(mask)
+        new_mask.paste(Image.fromarray(mask))
 
         new_imgs.append(np.array(new_img))
-        new_masks.append(np.array(new_mask))
+        new_masks.append(np.array(new_mask)[:,:,0])
 
     return new_imgs, new_masks

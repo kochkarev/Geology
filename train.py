@@ -79,5 +79,5 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         plot_segm_history(history)
 
 if __name__ == "__main__":
-    path = os.path.join("input", "dataset")
+    path = os.path.join("input", "dataset", "*_NEW.png")
     train(num_classes=4, num_layers=2, epochs=20, path=path)
