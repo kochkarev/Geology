@@ -1,8 +1,8 @@
-from data_utils.load_data import get_imgs_masks, resize_imgs_masks
+from data_utils import get_imgs_masks, resize_imgs_masks
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
-from models.unet import custom_unet
+from unet import custom_unet
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
 from metrics import iou
@@ -15,16 +15,15 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
 
     x, y = get_imgs_masks(path)
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
-    x, y = resize_imgs_masks(num_layers, x, y)
+    #x, y = resize_imgs_masks(num_layers, x, y)
+    x = [i[:512,:512,:] for i in x]
+    y = [i[:512,:512,0] for i in y]
     print("After resize {num} images and {num1} masks".format(num=len(x), num1=len(y)))
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
-<<<<<<< HEAD
 
     print(x.shape)
     print(y.shape)
-=======
->>>>>>> e2f5b6f412fad936ae3bfebbbb787051cb7a4425
 
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
     print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
@@ -80,19 +79,14 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         train_gen.flow(x_train, y_train, batch_size=2),
         steps_per_epoch=len(x_train) / 2,
         epochs=epochs,
-<<<<<<< HEAD
         validation_data=(x_val, y_val)
         #callbacks=[callback_checkpoint, callback_visualize]
-=======
-        validation_data=(x_val, y_val),
-        #callbacks=[callback_checkpoint, callback_visualize]
-        callbacks=[callback_checkpoint]
->>>>>>> e2f5b6f412fad936ae3bfebbbb787051cb7a4425
     )
 
     if show_history:
         plot_segm_history(history)
 
 if __name__ == "__main__":
-    path = os.path.join("input", "dataset", "*_NEW.png")
+    path = os.path.join("C:\\Users\\Admin\\Desktop\\Kochkarev\\Geology", "input", "dataset", "*_NEW.png")
+    print(path)
     train(num_classes=4, num_layers=2, epochs=20, path=path)

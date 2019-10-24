@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from data_utils.load_data import get_pairs_from_paths
+from data_utils import get_pairs_from_paths
 
 def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
