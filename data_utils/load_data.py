@@ -53,4 +53,7 @@ def resize_imgs_masks(num_layers, imgs, masks):
         new_imgs.append(np.array(new_img))
         new_masks.append(np.array(new_mask)[:,:,0])
 
+        new_img.close()
+        new_mask.close()
+
     return new_imgs, new_masks

@@ -14,19 +14,24 @@ from callbacks import VisualizeResults
 def train(num_classes, num_layers, path, epochs, show_history=True):
 
     x, y = get_imgs_masks(path)
+    print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
     x, y = resize_imgs_masks(num_layers, x, y)
-
+    print("After resize {num} images and {num1} masks".format(num=len(x), num1=len(y)))
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
+<<<<<<< HEAD
 
     print(x.shape)
     print(y.shape)
+=======
+>>>>>>> e2f5b6f412fad936ae3bfebbbb787051cb7a4425
 
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
-    
+    print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
+    print("Validation: {x_v} images and {y_v} masks".format(x_v=x_val.shape, y_v=y_val.shape))
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
-
+    print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
     train_gen = ImageDataGenerator(
         featurewise_center=False,
         featurewise_std_normalization=False,
@@ -75,8 +80,14 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         train_gen.flow(x_train, y_train, batch_size=2),
         steps_per_epoch=len(x_train) / 2,
         epochs=epochs,
+<<<<<<< HEAD
         validation_data=(x_val, y_val)
         #callbacks=[callback_checkpoint, callback_visualize]
+=======
+        validation_data=(x_val, y_val),
+        #callbacks=[callback_checkpoint, callback_visualize]
+        callbacks=[callback_checkpoint]
+>>>>>>> e2f5b6f412fad936ae3bfebbbb787051cb7a4425
     )
 
     if show_history:
