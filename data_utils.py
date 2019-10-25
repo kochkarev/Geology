@@ -28,32 +28,21 @@ def get_pairs_from_paths(path):
 	return ret
 
 def resize_imgs_masks(num_layers, imgs, masks):
+    
     k = pow(2, num_layers)
-    height = imgs[0].shape[0]
-    width = imgs[0].shape[1]
-
-    if (height // k == 0 and width // k == 0):
-        return imgs, masks
-
-    new_height = (height // k + 1) * k
-    new_width = (width // k + 1) * k
-
-    print("Old height and width: {h} : {w}".format(h=height, w=width))
-    print("New height and width: {h} : {w}".format(h=new_height, w=new_width))
-
     new_imgs = []
     new_masks = []
 
-    for img, mask in zip(imgs, masks): #pad numpy TODO
-        new_img = Image.new("RGB", (new_height, new_width))
-        new_img.paste(Image.fromarray(img))
-        new_mask = Image.new("RGB", (new_height, new_width))
-        new_mask.paste(Image.fromarray(mask))
+    for img, mask in zip(imgs, masks):
 
-        new_imgs.append(np.array(new_img))
-        new_masks.append(np.array(new_mask)[:,:,0])
+        assert (img.shape == masks.shape) , ("Mask shape must be equal to image shape")
 
-        new_img.close()
-        new_mask.close()
+        height = img.shape[0]
+        width = img.shape[1]
+        new_height = (height // k + 1) * k
+        new_width = (width // k + 1) * k
+
+        new_imgs.append(np.pad(img, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant'))
+        new_masks.append(np.pad(mask, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant')[:,:,0])
 
     return new_imgs, new_masks

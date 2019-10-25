@@ -13,6 +13,8 @@ from callbacks import VisualizeResults
 
 def train(num_classes, num_layers, path, epochs, show_history=True):
 
+    #os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
+
     x, y = get_imgs_masks(path)
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
     #x, y = resize_imgs_masks(num_layers, x, y)
@@ -87,6 +89,5 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         plot_segm_history(history)
 
 if __name__ == "__main__":
-    path = os.path.join("C:\\Users\\Admin\\Desktop\\Kochkarev\\Geology", "input", "dataset", "*_NEW.png")
-    print(path)
+    path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
     train(num_classes=4, num_layers=2, epochs=20, path=path)
