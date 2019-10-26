@@ -10,7 +10,6 @@ def get_imgs_masks(path):
     masks_list = []
     for image, mask in zip(imgs, masks):
         imgs_list.append(np.array(Image.open(image)))
-        #masks_list.append(np.array(Image.open(mask))[:,:,0])
         masks_list.append(np.array(Image.open(mask)))
 
     return imgs_list, masks_list
@@ -39,8 +38,8 @@ def resize_imgs_masks(num_layers, imgs, masks):
 
         height = img.shape[0]
         width = img.shape[1]
-        new_height = (height // k + 1) * k
-        new_width = (width // k + 1) * k
+        new_height = np.ceil(height / k).astype('int') * k
+        new_width = np.ceil(width / k).astype('int') * k
 
         new_imgs.append(np.pad(img, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant'))
         new_masks.append(np.pad(mask, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant')[:,:,0])

@@ -13,13 +13,15 @@ from callbacks import VisualizeResults
 
 def train(num_classes, num_layers, path, epochs, show_history=True):
 
-    #os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
+    os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
     x, y = get_imgs_masks(path)
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
+
     #x, y = resize_imgs_masks(num_layers, x, y)
-    x = [i[:512,:512,:] for i in x]
-    y = [i[:512,:512,0] for i in y]
+    x = [i[:1024,:1024,:] for i in x]
+    y = [i[:1024,:1024,0] for i in y]
+    
     print("After resize {num} images and {num1} masks".format(num=len(x), num1=len(y)))
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
