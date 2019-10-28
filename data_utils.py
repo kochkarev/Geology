@@ -2,6 +2,7 @@ import numpy as np
 import glob
 from PIL import Image
 import os
+import matplotlib.pyplot as plt
 
 def get_imgs_masks(path):
     masks = glob.glob(path)
@@ -26,15 +27,17 @@ def get_pairs_from_paths(path):
 		ret.append((im , seg))
 	return ret
 
-def resize_imgs_masks(num_layers, imgs, masks):
+def resize_imgs_masks(imgs, masks, num_layers=None, patch_size=None):
     
-    k = pow(2, num_layers)
+    assert ((num_layers == None) != (patch_size == None)), ("Wrong input params: num_layers or patch_size should be None")
+
+    k = pow(2, num_layers) if num_layers != None else patch_size
     new_imgs = []
     new_masks = []
 
     for img, mask in zip(imgs, masks):
 
-        assert (img.shape == masks.shape) , ("Mask shape must be equal to image shape")
+        assert (img.shape == mask.shape) , ("Mask shape must be equal to image shape")
 
         height = img.shape[0]
         width = img.shape[1]
@@ -45,3 +48,15 @@ def resize_imgs_masks(num_layers, imgs, masks):
         new_masks.append(np.pad(mask, ((0, new_height - height), (0, new_width - width), (0, 0)), 'constant')[:,:,0])
 
     return new_imgs, new_masks
+
+def make_patches(img_arr, size=256):
+    
+    patches_list = []
+
+    if img_arr.ndim == 3:    
+        i_max = img_arr.shape[0] // size
+        for i in range(i_max):
+            for j in range(i_max):
+                patches_list.append(img_arr[i*size : i*size+size, j*size : j*size+size])
+
+    return np.stack(patches_list) 
