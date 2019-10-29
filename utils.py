@@ -119,31 +119,27 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     plt.show()
 
-def plot_patches(img_arr, org_img_size, stride=None, size=None):
+# def plot_patches(img_arr, org_img_size, size):
     
-    # check parameters
-    if type(org_img_size) is not tuple:
-        raise ValueError('org_image_size must be a tuple')
+#     # check parameters
+#     if type(org_img_size) is not tuple:
+#         raise ValueError('org_image_size must be a tuple')
         
-    if img_arr.ndim == 3:
-        img_arr = np.expand_dims(img_arr, axis=0)
-        
-    if size is None:
-        size = img_arr.shape[1]
-        
-    if stride is None:
-        stride = size
-            
-    i_max = (org_img_size[0] // stride) + 1 - (size // stride)
-    j_max = (org_img_size[1] // stride) + 1 - (size // stride)
-    
-    fig, axes = plt.subplots(i_max, j_max, figsize=(i_max*2, j_max*2))
-    fig.subplots_adjust(hspace=0.05, wspace=0.05)
-    jj = 0
-    for i in range(i_max):
-        for j in range(j_max):
-            axes[i, j].imshow(img_arr[jj])
-            axes[i, j].set_axis_off()
-            jj += 1
+#     if img_arr.ndim == 3:
+#         img_arr = np.expand_dims(img_arr, axis=0)
+
+#     i_max = (org_img_size[0] // size)
+#     j_max = (org_img_size[1] // size)
+
+#     print("i_max = {i}, j_max = {j}".format(i=i_max, j=j_max))
+
+#     fig, axes = plt.subplots(i_max, j_max, figsize=(i_max, j_max))
+#     fig.subplots_adjust(hspace=0.05, wspace=0.05)
+#     jj = 0
+#     for i in range(i_max):
+#         for j in range(j_max):
+#             axes[i, j].imshow(img_arr[jj])
+#             axes[i, j].set_axis_off()
+#             jj += 1
     
 

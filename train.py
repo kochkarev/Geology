@@ -1,4 +1,4 @@
-from data_utils import get_imgs_masks, resize_imgs_masks
+from data_utils import get_imgs_masks, resize_imgs_masks, generate_patches_list, convert_patches_list
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
@@ -19,17 +19,24 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
 
     #x, y = resize_imgs_masks(num_layers, x, y)
-    x = [i[:1024,:1024,:] for i in x]
-    y = [i[:1024,:1024,0] for i in y]
+    #x = [i[:1024,:1024,:] for i in x]
+    #y = [i[:1024,:1024,0] for i in y]
+
+    x, y = resize_imgs_masks(x, y, patch_size=512)
+    print("After resize {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
+    x, y = generate_patches_list(x, y, 512)
+    print("After patching {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
     
-    print("After resize {num} images and {num1} masks".format(num=len(x), num1=len(y)))
+    x, y = convert_patches_list(x, y)
+    print("After converting {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
+
     x = np.asarray(x, dtype=np.float32) / 255 
-    y = np.asarray(y, dtype=np.uint8)
+    y = np.asarray([i[:,:,0] for i in y], dtype=np.uint8)
 
     print(x.shape)
     print(y.shape)
 
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.3, random_state=0)
+    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=0)
     print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
     print("Validation: {x_v} images and {y_v} masks".format(x_v=x_val.shape, y_v=y_val.shape))
     y_train = to_categorical(y_train, num_classes=num_classes)
@@ -80,8 +87,8 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     # )
 
     history = model.fit_generator(
-        train_gen.flow(x_train, y_train, batch_size=2),
-        steps_per_epoch=len(x_train) / 2,
+        train_gen.flow(x_train, y_train, batch_size=4),
+        steps_per_epoch=len(x_train) / 4,
         epochs=epochs,
         validation_data=(x_val, y_val)
         #callbacks=[callback_checkpoint, callback_visualize]
