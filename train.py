@@ -22,13 +22,13 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     #x = [i[:1024,:1024,:] for i in x]
     #y = [i[:1024,:1024,0] for i in y]
 
-    x, y = resize_imgs_masks(x, y, patch_size=512)
-    print("After resize {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
-    x, y = generate_patches_list(x, y, 512)
-    print("After patching {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
+    # x, y = resize_imgs_masks(x, y, patch_size=512)
+    # print("After resize {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
+    # x, y = generate_patches_list(x, y, 512)
+    # print("After patching {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
     
-    x, y = convert_patches_list(x, y)
-    print("After converting {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
+    # x, y = convert_patches_list(x, y)
+    # print("After converting {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
 
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray([i[:,:,0] for i in y], dtype=np.uint8)

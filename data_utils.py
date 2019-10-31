@@ -109,3 +109,46 @@ def convert_patches_list(imgs, masks):
             new_masks.append(mask[i, :, :, :])
     
     return new_images, new_masks
+
+def split_to_patches(img, patch_size, offset, align=None):
+
+    patches = []
+    height = img.shape[0]
+    width = img.shape[1]
+    new_h = height
+    new_w = width
+
+    if (img.shape[0] - patch_size) % (patch_size - 2 * offset) != 0:
+        new_h = np.ceil((img.shape[0] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+
+    if (img.shape[1] - patch_size) % (patch_size - 2 * offset) != 0:
+        new_w = np.ceil((img.shape[1] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+
+    img = np.pad(img, ((0, new_h - height), (0, new_w - width), (0, 0)), 'constant')
+
+    i = 0
+    j = 0
+    while (i + patch_size <= img.shape[0]):
+        while (j + patch_size <= img.shape[1]):
+            patches.append(img[i : i + patch_size, j : j + patch_size, :])
+            j += patch_size - 2 * offset
+        i += patch_size - 2 * offset
+        j = 0
+    return np.stack(patches), (new_h, new_w)
+
+def combine_patches(patches, patch_size, offset, size, orig_size):
+
+    kk = 0
+    img = np.zeros((size[0], size[1], 3), dtype=patches[0].dtype)
+    
+    i = 0
+    j = 0
+    while (i + patch_size <= size[0]):
+        while (j + patch_size <= size[1]):
+            img[i : i+patch_size, j : j+patch_size, :] = patches[kk, :, :, :]
+            j += patch_size - 2 * offset
+            kk += 1        
+        i += patch_size - 2 * offset
+        j = 0
+
+    return img[:orig_size[0], :orig_size[1], :]
