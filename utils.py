@@ -97,7 +97,7 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     cols = 2 if preds is None else 4
 
-    _, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
+    fig, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
     axes[0, 0].set_title("original", fontsize=15) 
     axes[0, 1].set_title("ground truth", fontsize=15)
     if not (preds is None):
@@ -122,7 +122,7 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     if (ouput_path != None):
         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
-        plt.savefig(output_name)
+        fig.savefig(output_name)
 
 # def plot_patches(img_arr, org_img_size, size):
     
