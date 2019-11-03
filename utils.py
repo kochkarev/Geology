@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths
+import os
 
 def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
@@ -92,7 +93,7 @@ def compare_masks_rgb(truth, pred):
 
     return blank_image
 
-def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4):
+def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4, ouput_path=None, epoch=0):
 
     cols = 2 if preds is None else 4
 
@@ -118,6 +119,10 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
         im_id += 1
 
     plt.show()
+
+    if (ouput_path != None):
+        output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
+        plt.savefig(output_name)
 
 # def plot_patches(img_arr, org_img_size, size):
     

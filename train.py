@@ -42,6 +42,7 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
     print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
+
     train_gen = ImageDataGenerator(
         featurewise_center=False,
         featurewise_std_normalization=False,
@@ -65,13 +66,13 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         output_activation='softmax'
     )
 
-    # model_filename = 'segm_model_v1.h5'
-    # callback_checkpoint = ModelCheckpoint(
-    #     model_filename, 
-    #     verbose=1, 
-    #     monitor='val_loss', 
-    #     save_best_only=True,
-    # )
+    model_filename = 'model_v1.h5'
+    callback_checkpoint = ModelCheckpoint(
+        model_filename, 
+        verbose=1, 
+        monitor='val_loss', 
+        save_best_only=True,
+    )
 
     model.compile(
         optimizer=Adam(), 
@@ -79,19 +80,20 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         metrics=[iou]
     )
 
-    # callback_visualize = VisualizeResults(
-    #     images=x_val, 
-    #     masks=y_val, 
-    #     model=model, 
-    #     n_classes=num_classes
-    # )
+    callback_visualize = VisualizeResults(
+        images=x_val, 
+        masks=y_val, 
+        model=model, 
+        n_classes=num_classes,
+        output_path='output'
+    )
 
     history = model.fit_generator(
         train_gen.flow(x_train, y_train, batch_size=4),
         steps_per_epoch=len(x_train) / 4,
         epochs=epochs,
-        validation_data=(x_val, y_val)
-        #callbacks=[callback_checkpoint, callback_visualize]
+        validation_data=(x_val, y_val),
+        callbacks=[callback_checkpoint, callback_visualize]
     )
 
     if show_history:
