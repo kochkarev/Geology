@@ -1,6 +1,6 @@
 #import plaidml.keras
 #plaidml.keras.install_backend()
-from data_utils import get_imgs_masks, resize_imgs_masks, generate_patches_list, convert_patches_list
+from data_utils import get_imgs_masks, resize_imgs_masks
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
@@ -15,7 +15,7 @@ from callbacks import TestResults
 import plaidml.keras
 from generators import PatchGenerator
 
-def train(num_classes, num_layers, path, epochs, show_history=True):
+def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_history=True):
 
     x, y = get_imgs_masks(path)
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
@@ -33,17 +33,17 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
     y_val = to_categorical(y_val, num_classes=num_classes)
     #print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
 
-    train_gen = ImageDataGenerator(
-        featurewise_center=False,
-        featurewise_std_normalization=False,
-        rotation_range=20,
-        width_shift_range=0.2,
-        height_shift_range=0.2,
-        horizontal_flip=True,
-        vertical_flip=True
-    )
+    # train_gen = ImageDataGenerator(
+    #     featurewise_center=False,
+    #     featurewise_std_normalization=False,
+    #     rotation_range=20,
+    #     width_shift_range=0.2,
+    #     height_shift_range=0.2,
+    #     horizontal_flip=True,
+    #     vertical_flip=True
+    # )
 
-    input_shape = (256, 256, 3)
+    input_shape = (patch_size, patch_size, 3)
 
     model = custom_unet(
         input_shape,
@@ -75,21 +75,23 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         masks=y_val, 
         model=model, 
         n_classes=num_classes,
-        batch_size=4,
-        patch_size=256,
+        batch_size=batch_size,
+        patch_size=patch_size,
         offset=2 ** num_layers,
         output_path='output'
     )
 
-    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=256, batch_size=4)
-    valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=256, batch_size=4)
+    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
+    valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
+
+    steps_per_epoch = 16
 
     history = model.fit_generator(
         iter(train_generator),
-        steps_per_epoch=16,
-        epochs=4,
+        steps_per_epoch=steps_per_epoch,
+        epochs=epochs,
         validation_data=iter(valid_generator),
-        validation_steps=2,
+        validation_steps=steps_per_epoch,
         callbacks=[callback_checkpoint, callback_test]
     )
 
@@ -98,4 +100,4 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=2, epochs=20, path=path)
+    train(num_classes=4, num_layers=2, epochs=4, path=path, batch_size=4, patch_size=256)
