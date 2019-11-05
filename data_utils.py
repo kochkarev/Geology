@@ -1,3 +1,5 @@
+#import plaidml.keras
+#plaidml.keras.install_backend()
 import numpy as np
 import glob
 from PIL import Image
@@ -11,10 +13,10 @@ def get_imgs_masks(path):
     imgs_list = []
     masks_list = []
     for image, mask in zip(imgs, masks):
-        #imgs_list.append(np.array(Image.open(image)))
-        imgs_list.append(cv2.imread(image))
-        #masks_list.append(np.array(Image.open(mask))) 
-        masks_list.append(cv2.imread(mask))
+        imgs_list.append(np.array(Image.open(image)))
+        #imgs_list.append(cv2.imread(image))
+        masks_list.append(np.array(Image.open(mask))[...,0]) 
+        #masks_list.append(cv2.imread(mask))
 
     return imgs_list, masks_list
 
@@ -126,7 +128,7 @@ def split_to_patches(img, patch_size, offset, align=None):
 
     img = np.pad(img, ((0, new_h - height), (0, new_w - width), (0, 0)), 'constant')
 
-    i = 0
+    i = 0  
     j = 0
     while (i + patch_size <= img.shape[0]):
         while (j + patch_size <= img.shape[1]):
@@ -134,21 +136,23 @@ def split_to_patches(img, patch_size, offset, align=None):
             j += patch_size - 2 * offset
         i += patch_size - 2 * offset
         j = 0
-    return np.stack(patches), (new_h, new_w)
+    return patches, (new_h, new_w)
 
-def combine_patches(patches, patch_size, offset, size, orig_size):
+def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (255,255,255)):
 
     kk = 0
-    img = np.zeros((size[0], size[1], 3), dtype=patches[0].dtype)
-    
+    img = np.full(shape=(size[0], size[1], 3), fill_value=fill_color, dtype=patches[0].dtype)
     i = 0
     j = 0
     while (i + patch_size <= size[0]):
         while (j + patch_size <= size[1]):
-            img[i : i+patch_size, j : j+patch_size, :] = patches[kk, :, :, :]
+            img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, :] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, :]
             j += patch_size - 2 * offset
-            kk += 1        
+            kk += 1
         i += patch_size - 2 * offset
         j = 0
 
-    return img[:orig_size[0], :orig_size[1], :]
+    img = img[:orig_size[0], :orig_size[1], :]
+    img[-offset:, :, :] = fill_color
+    img[:,-offset:,:] = fill_color
+    return img

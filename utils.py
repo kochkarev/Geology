@@ -1,3 +1,5 @@
+#import plaidml.keras
+#plaidml.keras.install_backend()
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths

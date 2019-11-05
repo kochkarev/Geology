@@ -1,29 +1,37 @@
 import numpy as np
 
-def PatchGenerator(images, masks, patch_size, batch_size):
+class PatchGenerator:
 
-    while(True):
-    
-        assert (type(images) is np.ndarray and type(masks) is np.ndarray), ("Input data type is expected to be ndarray")
-        assert (images.shape == masks.shape), ("Original images and masks must be equal shape")
+    def __init__(self, images : np.ndarray, masks : np.ndarray, patch_size : int, batch_size : int):
 
-        batch_files = np.random.choice(a=images.shape[0], size=batch_size)
+        self.images = images
+        self.masks = masks
+        self.patch_size = patch_size
+        self.batch_size = batch_size
 
-        batch_x = []
-        batch_y = []
+    def __iter__(self):
 
-        for batch_idx in batch_files:
+        while(True):
+        
+            assert (self.images.shape[:3] == self.masks.shape[:3]), ("Original images and masks must be equal shape")
 
-            i = np.random.choice(a=images.shape[1]-patch_size-1)
-            j = np.random.choice(a=images.shape[2]-patch_size-1)
+            batch_files = np.random.choice(a=self.images.shape[0], size=self.batch_size)
 
-            xx = images[batch_idx, i : i+patch_size, j : j+patch_size, :]
-            yy = masks[batch_idx, i : i+patch_size, j : j+patch_size, :]
+            batch_x = []
+            batch_y = []
 
-            batch_x.append(xx)
-            batch_y.append(yy)
+            for batch_idx in batch_files:
 
-        batch_x = np.stack(batch_x)
-        batch_y = np.stack(batch_y)
+                i = np.random.choice(a=self.images.shape[1]-self.patch_size-1)
+                j = np.random.choice(a=self.images.shape[2]-self.patch_size-1)
 
-        yield (batch_x, batch_y)
+                xx = self.images[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
+                yy = self.masks[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
+
+                batch_x.append(xx)
+                batch_y.append(yy)
+
+            batch_x = np.stack(batch_x)
+            batch_y = np.stack(batch_y)
+
+            yield (batch_x, batch_y)

@@ -1,3 +1,5 @@
+#import plaidml.keras
+#plaidml.keras.install_backend()
 from data_utils import get_imgs_masks, resize_imgs_masks, generate_patches_list, convert_patches_list
 from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
@@ -9,39 +11,27 @@ from metrics import iou
 from utils import plot_segm_history
 import os
 import numpy as np
-from callbacks import VisualizeResults
+from callbacks import TestResults
+import plaidml.keras
+from generators import PatchGenerator
 
 def train(num_classes, num_layers, path, epochs, show_history=True):
-
-    os.environ["KERAS_BACKEND"] = "plaidml.keras.backend"
 
     x, y = get_imgs_masks(path)
     print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
 
-    #x, y = resize_imgs_masks(num_layers, x, y)
-    #x = [i[:1024,:1024,:] for i in x]
-    #y = [i[:1024,:1024,0] for i in y]
-
-    # x, y = resize_imgs_masks(x, y, patch_size=512)
-    # print("After resize {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
-    # x, y = generate_patches_list(x, y, 512)
-    # print("After patching {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
-    
-    # x, y = convert_patches_list(x, y)
-    # print("After converting {num} images {s1} and {num1} masks {s2}".format(num=len(x), num1=len(y), s1=x[0].shape, s2=y[0].shape))
-
     x = np.asarray(x, dtype=np.float32) / 255 
-    y = np.asarray([i[:,:,0] for i in y], dtype=np.uint8)
+    y = np.asarray(y, dtype=np.uint8)
 
-    print(x.shape)
-    print(y.shape)
+    #print(x.shape)
+    #print(y.shape)
 
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=0)
-    print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
-    print("Validation: {x_v} images and {y_v} masks".format(x_v=x_val.shape, y_v=y_val.shape))
+    #print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
+    #print("Validation: {x_v} images and {y_v} masks".format(x_v=x_val.shape, y_v=y_val.shape))
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
-    print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
+    #print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
 
     train_gen = ImageDataGenerator(
         featurewise_center=False,
@@ -53,7 +43,7 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         vertical_flip=True
     )
 
-    input_shape = x_train[0].shape
+    input_shape = (256, 256, 3)
 
     model = custom_unet(
         input_shape,
@@ -80,20 +70,27 @@ def train(num_classes, num_layers, path, epochs, show_history=True):
         metrics=[iou]
     )
 
-    callback_visualize = VisualizeResults(
+    callback_test = TestResults(
         images=x_val, 
         masks=y_val, 
         model=model, 
         n_classes=num_classes,
+        batch_size=4,
+        patch_size=256,
+        offset=2 ** num_layers,
         output_path='output'
     )
 
+    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=256, batch_size=4)
+    valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=256, batch_size=4)
+
     history = model.fit_generator(
-        train_gen.flow(x_train, y_train, batch_size=4),
-        steps_per_epoch=len(x_train) / 4,
-        epochs=epochs,
-        validation_data=(x_val, y_val),
-        callbacks=[callback_checkpoint, callback_visualize]
+        iter(train_generator),
+        steps_per_epoch=16,
+        epochs=4,
+        validation_data=iter(valid_generator),
+        validation_steps=2,
+        callbacks=[callback_checkpoint, callback_test]
     )
 
     if show_history:

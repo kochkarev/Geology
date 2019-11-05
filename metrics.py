@@ -1,3 +1,5 @@
+#import plaidml.keras
+#plaidml.keras.install_backend()
 from keras import backend as K
 
 def iou(y_true, y_pred, smooth=1.):
