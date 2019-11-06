@@ -101,7 +101,7 @@ def compare_masks_rgb(truth, pred):
 
 def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
 
-    assert (img.ndim == 2 and pred.ndim == 2), ('Expected (H x W) masks')
+    assert (img.ndim == 2 and pred.ndim == 2), ('Expected (H x W) masks, got img with shape {} and pred with shape {}'.format(img.shape, pred.shape))
 
     masks = []
     for i in range(num_classes):
@@ -152,7 +152,7 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
             axes[m, 4].set_axis_off()
         im_id += 1
 
-    plt.show()
+    #plt.show()
 
     if (ouput_path != None):
         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')

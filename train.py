@@ -7,7 +7,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
-from metrics import iou
+from metrics import iou, iou_tf
 from utils import plot_segm_history
 import os
 import numpy as np
@@ -67,7 +67,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     model.compile(
         optimizer=Adam(), 
         loss = 'categorical_crossentropy',
-        metrics=[iou]
+        metrics=[iou_tf]
     )
 
     callback_test = TestResults(
@@ -84,7 +84,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
 
-    steps_per_epoch = 32
+    steps_per_epoch = 16
 
     history = model.fit_generator(
         iter(train_generator),
@@ -92,7 +92,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         epochs=epochs,
         validation_data=iter(valid_generator),
         validation_steps=steps_per_epoch,
-        callbacks=[callback_checkpoint]#, callback_test
+        callbacks=[callback_checkpoint, callback_test]
     )
 
     if show_history:
