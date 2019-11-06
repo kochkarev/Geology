@@ -141,9 +141,7 @@ def split_to_patches(img, patch_size, offset, align=None):
 def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (255,255,255,255)):
 
     kk = 0
-    #print('!!!! {}'.format(patches[0].shape))
     img = np.full(shape=(size[0], size[1], patches[0].shape[2]), fill_value=fill_color, dtype=patches[0].dtype)
-    #print('!!!! {}'.format(img.shape))
     i = 0
     j = 0
     while (i + patch_size <= size[0]):
