@@ -23,15 +23,10 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
 
-    #print(x.shape)
-    #print(y.shape)
-
     x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=0)
-    #print("Training: {x_tr} images and {y_tr} masks".format(x_tr=x_train.shape, y_tr=y_train.shape))
-    #print("Validation: {x_v} images and {y_v} masks".format(x_v=x_val.shape, y_v=y_val.shape))
+
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
-    #print("After transforming masks: train: {tr}; validation: {val}".format(tr=y_train.shape, val=y_val.shape))
 
     # train_gen = ImageDataGenerator(
     #     featurewise_center=False,
