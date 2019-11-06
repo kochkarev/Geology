@@ -138,21 +138,23 @@ def split_to_patches(img, patch_size, offset, align=None):
         j = 0
     return patches, (new_h, new_w)
 
-def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (255,255,255)):
+def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (255,255,255,255)):
 
     kk = 0
-    img = np.full(shape=(size[0], size[1], 3), fill_value=fill_color, dtype=patches[0].dtype)
+    #print('!!!! {}'.format(patches[0].shape))
+    img = np.full(shape=(size[0], size[1], patches[0].shape[2]), fill_value=fill_color, dtype=patches[0].dtype)
+    #print('!!!! {}'.format(img.shape))
     i = 0
     j = 0
     while (i + patch_size <= size[0]):
         while (j + patch_size <= size[1]):
-            img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, :] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, :]
+            img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, ...] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, ...]
             j += patch_size - 2 * offset
             kk += 1
         i += patch_size - 2 * offset
         j = 0
 
-    img = img[:orig_size[0], :orig_size[1], :]
-    img[-offset:, :, :] = fill_color
-    img[:,-offset:,:] = fill_color
+    img = img[:orig_size[0], :orig_size[1], ...]
+    img[-offset:, ...] = fill_color
+    img[:,-offset:,...] = fill_color
     return img
