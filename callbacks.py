@@ -4,6 +4,7 @@ from keras.callbacks import Callback
 from utils import visualize_segmentation_result
 import numpy as np
 from data_utils import combine_patches, split_to_patches
+from metrics import calc_metrics
 
 class TestResults(Callback):
 
@@ -33,8 +34,7 @@ class TestResults(Callback):
         for i in range(0, len(patches), self.batch_size):
 
             batch = np.stack(patches[i : i+self.batch_size])
-            print(batch.shape)
-            prediction = batch
+            prediction = self.model.predict_on_batch(batch)
 
             for x in prediction:
                 pred_patches.append(x)
@@ -47,10 +47,16 @@ class TestResults(Callback):
     
     def on_epoch_end(self, epoch, logs=None):
 
-        for image in self.images:
+        predicted = []
+        for image, mask in zip(self.images, self.masks):
 
             pred = self.predict_image(image)
-            #print('{} {}'.format(image.shape, pred.shape))
-            
+            predicted.append(pred)
+            assert (pred.shape == mask.shape), ('Something bad')
 
-        
+            metrics = calc_metrics(mask, pred, ['iou'])
+            for metric in metrics:
+                print('{} : {}'.format(metric[0], metric[1]))
+
+        visualize_segmentation_result(self.images, [np.argmax(i, axis=2) for i in self.masks], [np.argmax(i, axis=2) for i in predicted], 
+                                    figsize=6, nm_img_to_plot=len(predicted), n_classes=self.n_classes, ouput_path=self.output_path, epoch=epoch)
