@@ -50,9 +50,7 @@ class TestResults(Callback):
         for image in self.images:
 
             pred = self.predict_image(image)
-            print('{} {}'.format(image.shape, pred.shape))
+            #print('{} {}'.format(image.shape, pred.shape))
+            
 
-        #preds = self.model.predict(self.images)
-        #visualize_segmentation_result(self.images, self.masks, preds, figsize=4, nm_img_to_plot=100, 
-        #                                n_classes=self.n_classes, ouput_path=self.output_path, epoch=epoch)
         

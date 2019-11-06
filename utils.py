@@ -4,6 +4,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths
 import os
+from PIL import Image
 
 def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
@@ -66,9 +67,12 @@ def colorize_mask(mask, n_classes):
     colors = class_colors
 
     for c in range(n_classes):
+        if mask.ndim == 3:
             color_mask[:,:,0] += ((mask[:,:,0] == c) * (colors[c][0])).astype('uint8')
             color_mask[:,:,1] += ((mask[:,:,0] == c) * (colors[c][1])).astype('uint8')
             color_mask[:,:,2] += ((mask[:,:,0] == c) * (colors[c][2])).astype('uint8')
+        elif mask.ndim == 2:
+            color_mask += ((mask == c) * (colors[c][2])).astype('uint8')
 
     return color_mask
 
@@ -95,16 +99,42 @@ def compare_masks_rgb(truth, pred):
 
     return blank_image
 
+def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
+
+    assert (img.ndim == 2 and pred.ndim == 2), ('Expected (H x W) masks')
+
+    masks = []
+    for i in range(num_classes):
+        masks.append(np.array(np.where(img == i, 1, 0) * np.where(pred == i, 1, 0), dtype=np.uint8))
+    res = np.zeros_like(img, dtype=np.uint8)
+    for mask in masks:
+        res += mask
+
+    return res
+
+def visualize_error_mask(mask : np.ndarray, show=False):
+
+    assert (mask.ndim == 2), ('Expected (H x W) output')
+
+    mask = np.asarray(np.dstack((mask, mask, mask)), dtype=np.uint8)
+    mask = np.array(np.where(mask == (0,0,0), (255,0,0), (0,255,0)), dtype=np.uint8)
+
+    if show:
+        Image.fromarray(mask).show()
+
+    return mask
+
 def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4, ouput_path=None, epoch=0):
 
-    cols = 2 if preds is None else 4
+    cols = 2 if preds is None else 5
 
     fig, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
     axes[0, 0].set_title("original", fontsize=15) 
     axes[0, 1].set_title("ground truth", fontsize=15)
     if not (preds is None):
         axes[0, 2].set_title("prediction", fontsize=15) 
-        axes[0, 3].set_title("errors map", fontsize=15) 
+        axes[0, 3].set_title("error map", fontsize=15) 
+        axes[0, 4].set_title("overlay", fontsize=15)
     
     im_id = 0
     for m in range(0, nm_img_to_plot):
@@ -115,9 +145,11 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
         if not (preds is None):
             axes[m, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
             axes[m, 2].set_axis_off()
-            #axes[m, 3].imshow(compare_masks_rgb(masks[im_id], preds[im_id]))
-            axes[m, 3].imshow(compare_masks_red(masks[im_id], preds[im_id]))
+            axes[m, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
             axes[m, 3].set_axis_off()
+            axes[m, 4].imshow(images[im_id])
+            axes[m, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
+            axes[m, 4].set_axis_off()
         im_id += 1
 
     plt.show()
@@ -125,28 +157,5 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
     if (ouput_path != None):
         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
         fig.savefig(output_name)
-
-# def plot_patches(img_arr, org_img_size, size):
-    
-#     # check parameters
-#     if type(org_img_size) is not tuple:
-#         raise ValueError('org_image_size must be a tuple')
-        
-#     if img_arr.ndim == 3:
-#         img_arr = np.expand_dims(img_arr, axis=0)
-
-#     i_max = (org_img_size[0] // size)
-#     j_max = (org_img_size[1] // size)
-
-#     print("i_max = {i}, j_max = {j}".format(i=i_max, j=j_max))
-
-#     fig, axes = plt.subplots(i_max, j_max, figsize=(i_max, j_max))
-#     fig.subplots_adjust(hspace=0.05, wspace=0.05)
-#     jj = 0
-#     for i in range(i_max):
-#         for j in range(j_max):
-#             axes[i, j].imshow(img_arr[jj])
-#             axes[i, j].set_axis_off()
-#             jj += 1
     
 

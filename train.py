@@ -84,7 +84,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
 
-    steps_per_epoch = 16
+    steps_per_epoch = 32
 
     history = model.fit_generator(
         iter(train_generator),
@@ -92,7 +92,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         epochs=epochs,
         validation_data=iter(valid_generator),
         validation_steps=steps_per_epoch,
-        callbacks=[callback_checkpoint, callback_test]
+        callbacks=[callback_checkpoint]#, callback_test
     )
 
     if show_history:
@@ -100,4 +100,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=2, epochs=4, path=path, batch_size=4, patch_size=256)
+    train(num_classes=4, num_layers=2, epochs=20, path=path, batch_size=4, patch_size=256)
