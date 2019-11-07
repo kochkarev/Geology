@@ -6,9 +6,9 @@ from data_utils import get_pairs_from_paths
 import os
 from PIL import Image
 
-def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
+def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
-    plt.figure(figsize=(12,6))
+    fig1 = plt.figure(figsize=(12,6))
     for metric in metrics:
         plt.plot(history.history[metric], linewidth=3)
     plt.suptitle('metrics over epochs', fontsize=20)
@@ -17,9 +17,10 @@ def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_
     #plt.yticks(np.arange(0.3, 1, step=0.02), fontsize=35)
     #plt.xticks(fontsize=35)
     plt.legend(metrics, loc='center right', fontsize=15)
+    fig1.savefig(os.path.join(output_path, 'metrics.jpg'))
     plt.show()
     # summarize history for loss
-    plt.figure(figsize=(12,6))    
+    fig2 = plt.figure(figsize=(12,6))    
     for loss in losses:
         plt.plot(history.history[loss], linewidth=3)
     plt.suptitle('loss over epochs', fontsize=20)
@@ -28,6 +29,7 @@ def plot_segm_history(history, metrics=['iou', 'val_iou'], losses=['loss', 'val_
     #plt.yticks(np.arange(0, 0.2, step=0.005), fontsize=35)
     #plt.xticks(fontsize=35)
     plt.legend(losses, loc='center right', fontsize=15)
+    fig2.savefig(os.path.join(output_path, 'loss.jpg'))
     plt.show()
 
 import random
@@ -155,5 +157,7 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
     if (ouput_path != None):
         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
         fig.savefig(output_name)
+
+    plt.close()
     
 

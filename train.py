@@ -96,7 +96,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     )
 
     if show_history:
-        plot_segm_history(history)
+        plot_segm_history(history, 'output')
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
