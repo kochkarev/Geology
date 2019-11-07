@@ -23,7 +23,14 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
 
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.1, random_state=0)
+    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.15, random_state=0)
+    print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
+    print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
+
+    aug_factor = 1
+    print(x_train.shape)
+    steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
+    print('Steps per epoch: {}'.format(steps_per_epoch))
 
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
@@ -79,8 +86,6 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
 
-    steps_per_epoch = 16
-
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -95,4 +100,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=2, epochs=20, path=path, batch_size=4, patch_size=256)
+    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)
