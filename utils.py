@@ -152,8 +152,6 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
             axes[m, 4].set_axis_off()
         im_id += 1
 
-    #plt.show()
-
     if (ouput_path != None):
         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
         fig.savefig(output_name)

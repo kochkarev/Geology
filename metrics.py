@@ -5,7 +5,7 @@ import numpy as np
 
 def calc_metrics(mask_gt : np.ndarray, mask_pred : np.ndarray, metrics : list):
 
-    metrics_dict = {'iou' : iou}
+    metrics_dict = {'iou' : iou_np}
     results = []
 
     for metric in metrics:
@@ -13,13 +13,13 @@ def calc_metrics(mask_gt : np.ndarray, mask_pred : np.ndarray, metrics : list):
 
     return results
 
-def iou_tf(y_true, y_pred, smooth=1.):
+def iou(y_true, y_pred, smooth=1.):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
     return (intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) - intersection + smooth)
 
-def iou(y_true, y_pred):
+def iou_np(y_true, y_pred):
     smooth = 1.
     y_true_f = y_true.flatten()
     y_pred_f = y_pred.flatten()

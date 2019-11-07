@@ -7,7 +7,7 @@ from keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
 from keras.callbacks import ModelCheckpoint
 from keras.optimizers import Adam, SGD
-from metrics import iou, iou_tf
+from metrics import iou, iou_np
 from utils import plot_segm_history
 import os
 import numpy as np
@@ -69,7 +69,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     model.compile(
         optimizer=Adam(), 
         loss = 'categorical_crossentropy',
-        metrics=[iou_tf]
+        metrics=[iou]
     )
 
     callback_test = TestResults(
@@ -79,13 +79,13 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         n_classes=num_classes,
         batch_size=batch_size,
         patch_size=patch_size,
-        offset=2 ** num_layers,
+        offset=2 * num_layers,
         output_path='output'
     )
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
-
+    steps_per_epoch = 1
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -100,4 +100,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)
+    train(num_classes=4, num_layers=3, epochs=2, path=path, batch_size=8, patch_size=512)
