@@ -48,15 +48,22 @@ class TestResults(Callback):
     def on_epoch_end(self, epoch, logs=None):
 
         predicted = []
+        all_metrics = ['iou']
+        metrics_values = {i : 0 for i in all_metrics}
         for image, mask in zip(self.images, self.masks):
 
             pred = self.predict_image(image)
             predicted.append(pred)
             assert (pred.shape == mask.shape), ('Something bad')
-
-            metrics = calc_metrics(mask, pred, ['iou'])
+            metrics = calc_metrics(mask, pred, all_metrics)
             for metric in metrics:
-                print('{} : {}'.format(metric[0], metric[1]))
+                metrics_values[metric[0]] += metric[1]
 
+        print('Calculating metrics:')
+        for metrics_name in metrics_values.keys():
+            print('{name} : {val}'.format(name=metrics_name, val=(metrics_values[metrics_name] / self.images.shape[0])))
+        
+        print('Processing visualization:')
         visualize_segmentation_result(self.images, [np.argmax(i, axis=2) for i in self.masks], [np.argmax(i, axis=2) for i in predicted], 
                                     figsize=6, nm_img_to_plot=len(predicted), n_classes=self.n_classes, ouput_path=self.output_path, epoch=epoch)
+        print('Visualization results saved in {} directory'.format(self.output_path))
