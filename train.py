@@ -14,6 +14,7 @@ import numpy as np
 from callbacks import TestResults
 import plaidml.keras
 from generators import PatchGenerator
+import gc
 
 def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_history=True):
 
@@ -80,12 +81,13 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         batch_size=batch_size,
         patch_size=patch_size,
         offset=2 * num_layers,
-        output_path='output'
+        output_path='output',
+        no_split = True
     )
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
-    steps_per_epoch = 1
+    #steps_per_epoch = 1
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -99,5 +101,6 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         plot_segm_history(history, 'output')
 
 if __name__ == "__main__":
+    gc.enable()
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=2, path=path, batch_size=8, patch_size=512)
+    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)
