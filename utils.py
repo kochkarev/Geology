@@ -156,4 +156,37 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     plt.close()
     
+def plot_metrics_history(metrics_values : dict):
 
+    for metric in metrics_values.keys():
+
+        lists = sorted(metrics_values[metric].items())
+        x, y = zip(*lists)
+
+        fig = plt.figure(figsize=(12,6))
+        plt.plot(x, y, linewidth=3)
+        plt.suptitle(metric + ' metric over epochs', fontsize=20)
+        plt.ylabel('metric', fontsize=20)
+        plt.xlabel('epoch', fontsize=20)
+        plt.legend([metric], loc='center right', fontsize=15)
+        fig.savefig(os.path.join(metric + '.jpg'))
+        plt.show()
+
+def plot_per_class_history(metrics_values : dict):
+
+    epochs = len(metrics_values[0])
+    fig = plt.figure(figsize=(12,6))
+    i = 0
+    for class_num in metrics_values.keys():
+        data = {x+1 : y for x in range(epochs) for y in metrics_values[class_num]}
+        lists = sorted(data.items())
+        x, y = zip(*lists)
+        plt.plot(x, y, linewidth=3)
+        i +=1
+
+    plt.suptitle('iou metric per class over epochs', fontsize=20)
+    plt.ylabel('metric', fontsize=20)
+    plt.xlabel('epoch', fontsize=20)
+    plt.legend([j for j in range(i)], loc='center right', fontsize=15)
+    fig.savefig(os.path.join('per_class_iou' + '.jpg'))
+    plt.show()

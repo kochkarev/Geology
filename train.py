@@ -5,9 +5,9 @@ from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
-from keras.callbacks import ModelCheckpoint
+from keras.callbacks import ModelCheckpoint, CSVLogger
 from keras.optimizers import Adam, SGD
-from metrics import iou, iou_np
+from metrics import iou, iou_multiclass
 from utils import plot_segm_history
 import os
 import numpy as np
@@ -29,9 +29,9 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
 
     aug_factor = 1
-    print(x_train.shape)
+    #print(x_train.shape)
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
-    print('Steps per epoch: {}'.format(steps_per_epoch))
+    #print('Steps per epoch: {}'.format(steps_per_epoch))
 
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
@@ -82,19 +82,22 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         patch_size=patch_size,
         offset=2 * num_layers,
         output_path='output',
-        no_split = True
+        no_split=False,
+        all_metrics=['iou']
     )
+
+    csv_logger = CSVLogger('training.log')
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
-    #steps_per_epoch = 1
+    steps_per_epoch = 1
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
         validation_data=iter(valid_generator),
         validation_steps=steps_per_epoch,
-        callbacks=[callback_checkpoint, callback_test]
+        callbacks=[callback_checkpoint, callback_test, csv_logger]
     )
 
     if show_history:
@@ -103,4 +106,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 if __name__ == "__main__":
     gc.enable()
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)
+    train(num_classes=4, num_layers=3, epochs=2, path=path, batch_size=2, patch_size=256)

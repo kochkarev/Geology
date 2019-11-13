@@ -1,14 +1,16 @@
 #import plaidml.keras
 #plaidml.keras.install_backend()
 from keras.callbacks import Callback
-from utils import visualize_segmentation_result
+from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history
 import numpy as np
 from data_utils import combine_patches, split_to_patches
 from metrics import calc_metrics
+from PIL import Image
+from statistics import mean
 
 class TestResults(Callback):
 
-    def __init__(self, images, masks, model, n_classes, batch_size, patch_size, offset, output_path, no_split : bool):
+    def __init__(self, images, masks, model, n_classes, batch_size, patch_size, offset, output_path, no_split : bool, all_metrics : list):
 
         self.images = images
         self.masks = masks
@@ -19,6 +21,9 @@ class TestResults(Callback):
         self.offset = offset
         self.output_path = output_path
         self.no_split = no_split
+        self.all_metrics = all_metrics
+        self.metrics_results = {i : dict() for i in all_metrics}
+        self.metrics_per_cls_res = {i : [] for i in range(n_classes)}
 
     def predict_image(self, img):
 
@@ -50,38 +55,69 @@ class TestResults(Callback):
 
         predicted = []
         all_metrics = ['iou']
-        if self.no_split:
-            all_metrics_no_split = [i for i in all_metrics]
+        # if self.no_split:
+        #     all_metrics_no_split = [i for i in all_metrics]
         metrics_values = {i : 0 for i in all_metrics}
-        if self.no_split:
-            metrics_values_no_split = {i : 0 for i in all_metrics}
-        print('Calculating metrics:')
+        tmp_metrics_per_cls_res = {i : [] for i in range(self.n_classes)}
+        # if self.no_split:
+        #     metrics_values_no_split = {i : 0 for i in all_metrics}
+        print('Testing current model:')
         for image, mask in zip(self.images, self.masks):
 
+            print('Predicting:')
             pred = self.predict_image(image)
             predicted.append(pred)
-            assert (pred.shape == mask.shape), ('Something bad')
-            metrics = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
-                                        np.argmax(pred[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics)
-            if self.no_split:
-                pred_no_split = self.model.predict(image)
-                metrics_no_split = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
-                                        np.argmax(pred_no_split[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics_no_split)
-            for metric in metrics:
-                metrics_values[metric[0]] += metric[1]
-            if self.no_split:
-                for metric in metrics_no_split:
-                    metrics_values_no_split[metric[0]] += metric[1]
+            #assert (pred.shape == mask.shape), ('Something bad')
+            print('Calculating metrics:')
 
+            #tmp_mask = np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2)
+            #tmp_pred = np.argmax(pred[self.offset:-self.offset,self.offset:-self.offset,...], axis=2)
+            #print("gt: {} pred: {}".format(tmp_mask.shape, tmp_pred.shape))
+            #Image.fromarray(colorize_mask(np.asarray(np.dstack((tmp_mask, tmp_mask, tmp_mask)), dtype=np.uint8), 4)).save(str(epoch)+"gt.jpeg")
+            #Image.fromarray(colorize_mask(tmp_mask, 4)).show()
+            #Image.fromarray(colorize_mask(np.asarray(np.dstack((tmp_pred, tmp_pred, tmp_pred)), dtype=np.uint8), 4)).save(str(epoch)+"pred.jpeg")
+            #Image.fromarray(colorize_mask(tmp_pred, 4)).show()
+
+            metrics = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
+                                        np.argmax(pred[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics, self.n_classes)
+            # if self.no_split:
+            #     pred_no_split = self.model.predict(image)
+            #     metrics_no_split = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
+            #           np.argmax(pred_no_split[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics_no_split)
+            for metric in metrics:
+                print('Metrics for each class:')
+                i = 0
+                for value in metric[1]:
+                    print("{} : {}".format(metric[0], value))
+                    tmp_metrics_per_cls_res[i].append(value)
+                    i +=1
+                metrics_values[metric[0]] += sum(metric[1]) / len(metric[1])
+
+            # if self.no_split:
+            #     for metric in metrics_no_split:
+            #         metrics_values_no_split[metric[0]] += metric[1]
+
+        for i in range(self.n_classes):
+            self.metrics_per_cls_res[i].append(mean(tmp_metrics_per_cls_res[i]))
+
+        print('Average metrics values:')
         for metrics_name in metrics_values.keys():
+            self.metrics_results[metrics_name][epoch+1] = metrics_values[metrics_name] / self.images.shape[0]
             print('{name} : {val}'.format(name=metrics_name, val=(metrics_values[metrics_name] / self.images.shape[0])))
-        if self.no_split:
-            print('Metrics values for image w/o splitting to patches:')
-            for metrics_name in metrics_values_no_split.keys():
-                print('{name} : {val}'.format(name=metrics_name, val=(metrics_values_no_split[metrics_name] / self.images.shape[0])))
+        # if self.no_split:
+        #     print('Metrics values for image w/o splitting to patches:')
+        #     for metrics_name in metrics_values_no_split.keys():
+        #         print('{name} : {val}'.format(name=metrics_name, val=(metrics_values_no_split[metrics_name] / self.images.shape[0])))
 
         
         print('Processing visualization:')
         visualize_segmentation_result(self.images, [np.argmax(i, axis=2) for i in self.masks], [np.argmax(i, axis=2) for i in predicted], 
                                     figsize=6, nm_img_to_plot=len(predicted), n_classes=self.n_classes, ouput_path=self.output_path, epoch=epoch)
         print('Visualization results saved in {} directory'.format(self.output_path))
+
+    def on_train_end(self, logs=None):
+
+        print('!!! {}'.format(self.metrics_results))
+        print('&&& {}'.format(self.metrics_per_cls_res))
+        plot_metrics_history(self.metrics_results)
+        plot_per_class_history(self.metrics_per_cls_res)
