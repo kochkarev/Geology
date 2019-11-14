@@ -29,5 +29,5 @@ def iou_binary(y_true, y_pred):
 def iou_multiclass(y_true, y_pred, num_classes):
     results = []
     for i in range(num_classes):
-        results.append(iou_binary(np.array(np.where(y_true[...,i] > 0, 1, 0), dtype=np.uint8), np.array(np.where(y_pred[...,i] > 0, 1, 0), dtype=np.uint8)))
+        results.append(iou_binary(y_true[...,i], y_pred[...,i]))
     return results

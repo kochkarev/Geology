@@ -74,6 +74,10 @@ def colorize_mask(mask, n_classes):
 
     return color_mask
 
+def contrast_mask(mask : np.ndarray):
+    k = 255 / np.max(mask)
+    return k * mask
+
 def compare_masks_red(truth, pred):
 
     difference = cv2.subtract(truth, pred)
@@ -178,7 +182,9 @@ def plot_per_class_history(metrics_values : dict):
     fig = plt.figure(figsize=(12,6))
     i = 0
     for class_num in metrics_values.keys():
-        data = {x+1 : y for x in range(epochs) for y in metrics_values[class_num]}
+        args = [x+1 for x in range(epochs)]
+        vals = [y for y in metrics_values[class_num]]
+        data = {x : y for x, y in zip(args, vals)}
         lists = sorted(data.items())
         x, y = zip(*lists)
         plt.plot(x, y, linewidth=3)

@@ -29,7 +29,6 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
 
     aug_factor = 1
-    #print(x_train.shape)
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     #print('Steps per epoch: {}'.format(steps_per_epoch))
 
@@ -106,4 +105,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 if __name__ == "__main__":
     gc.enable()
     path = os.path.join(os.path.dirname(__file__), "input", "dataset", "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=2, path=path, batch_size=2, patch_size=256)
+    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)

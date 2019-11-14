@@ -1,7 +1,7 @@
 #import plaidml.keras
 #plaidml.keras.install_backend()
 from keras.callbacks import Callback
-from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history
+from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask
 import numpy as np
 from data_utils import combine_patches, split_to_patches
 from metrics import calc_metrics
@@ -62,24 +62,15 @@ class TestResults(Callback):
         # if self.no_split:
         #     metrics_values_no_split = {i : 0 for i in all_metrics}
         print('Testing current model:')
+        ii = 0
         for image, mask in zip(self.images, self.masks):
 
             print('Predicting:')
             pred = self.predict_image(image)
             predicted.append(pred)
-            #assert (pred.shape == mask.shape), ('Something bad')
             print('Calculating metrics:')
-
-            #tmp_mask = np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2)
-            #tmp_pred = np.argmax(pred[self.offset:-self.offset,self.offset:-self.offset,...], axis=2)
-            #print("gt: {} pred: {}".format(tmp_mask.shape, tmp_pred.shape))
-            #Image.fromarray(colorize_mask(np.asarray(np.dstack((tmp_mask, tmp_mask, tmp_mask)), dtype=np.uint8), 4)).save(str(epoch)+"gt.jpeg")
-            #Image.fromarray(colorize_mask(tmp_mask, 4)).show()
-            #Image.fromarray(colorize_mask(np.asarray(np.dstack((tmp_pred, tmp_pred, tmp_pred)), dtype=np.uint8), 4)).save(str(epoch)+"pred.jpeg")
-            #Image.fromarray(colorize_mask(tmp_pred, 4)).show()
-
-            metrics = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
-                                        np.argmax(pred[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics, self.n_classes)
+            metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
+                                        pred[self.offset:-self.offset,self.offset:-self.offset,...], all_metrics, self.n_classes)
             # if self.no_split:
             #     pred_no_split = self.model.predict(image)
             #     metrics_no_split = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
@@ -96,6 +87,8 @@ class TestResults(Callback):
             # if self.no_split:
             #     for metric in metrics_no_split:
             #         metrics_values_no_split[metric[0]] += metric[1]
+
+            ii += 1
 
         for i in range(self.n_classes):
             self.metrics_per_cls_res[i].append(mean(tmp_metrics_per_cls_res[i]))
@@ -117,7 +110,5 @@ class TestResults(Callback):
 
     def on_train_end(self, logs=None):
 
-        print('!!! {}'.format(self.metrics_results))
-        print('&&& {}'.format(self.metrics_per_cls_res))
         plot_metrics_history(self.metrics_results)
         plot_per_class_history(self.metrics_per_cls_res)
