@@ -12,7 +12,6 @@ from utils import plot_segm_history
 import os
 import numpy as np
 from callbacks import TestResults
-import plaidml.keras
 from generators import PatchGenerator
 import gc
 
@@ -24,11 +23,11 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     x = np.asarray(x, dtype=np.float32) / 255 
     y = np.asarray(y, dtype=np.uint8)
 
-    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.15, random_state=0)
+    x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.15, random_state=42)
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
     print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
 
-    aug_factor = 1
+    aug_factor = 3
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     #print('Steps per epoch: {}'.format(steps_per_epoch))
 
@@ -87,9 +86,9 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 
     csv_logger = CSVLogger('training.log')
 
-    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size)
+    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size, augment=True)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
-    steps_per_epoch = 1
+    #steps_per_epoch = 1
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
