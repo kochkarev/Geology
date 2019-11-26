@@ -159,6 +159,33 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
         fig.savefig(output_name)
 
     plt.close()
+
+def visualize_line_detection_result(orig_img, edges, hough_orig, hough_edges, num_images, output_path, output_name):
+
+    figsize=15
+    fig, axes = plt.subplots(num_images, 4, figsize=(4*figsize, num_images*figsize))
+    axes[0,0].set_title("Original", fontsize=15)
+    axes[0,1].set_title("Edges", fontsize=15)
+    axes[0,2].set_title("Original + lines", fontsize=15)
+    axes[0,3].set_title("Edges + lines", fontsize=15)
+
+    img_idx = 0
+    for i in range(0, num_images):
+        axes[i,0].imshow(orig_img[img_idx])
+        axes[i,0].set_axis_off()
+        axes[i,1].imshow(edges[img_idx])
+        axes[i,1].set_axis_off()
+        axes[i,2].imshow(hough_orig[img_idx])
+        axes[i,2].set_axis_off()
+        axes[i,3].imshow(hough_edges[img_idx])
+        axes[i,3].set_axis_off()
+        img_idx += 1
+
+    if (output_path != None):
+        output_name = os.path.join(output_path, output_name)
+        fig.savefig(output_name)
+
+    plt.close()
     
 def plot_metrics_history(metrics_values : dict):
 
