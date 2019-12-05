@@ -34,16 +34,6 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     y_train = to_categorical(y_train, num_classes=num_classes)
     y_val = to_categorical(y_val, num_classes=num_classes)
 
-    # train_gen = ImageDataGenerator(
-    #     featurewise_center=False,
-    #     featurewise_std_normalization=False,
-    #     rotation_range=20,
-    #     width_shift_range=0.2,
-    #     height_shift_range=0.2,
-    #     horizontal_flip=True,
-    #     vertical_flip=True
-    # )
-
     input_shape = (patch_size, patch_size, 3)
 
     model = custom_unet(
