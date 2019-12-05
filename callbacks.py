@@ -7,6 +7,7 @@ from data_utils import combine_patches, split_to_patches
 from metrics import calc_metrics
 from PIL import Image
 from statistics import mean
+import os
 
 class TestResults(Callback):
 
@@ -20,6 +21,8 @@ class TestResults(Callback):
         self.patch_size = patch_size
         self.offset = offset
         self.output_path = output_path
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
         self.no_split = no_split
         self.all_metrics = all_metrics
         self.metrics_results = {i : dict() for i in all_metrics}
