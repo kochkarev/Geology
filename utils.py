@@ -160,6 +160,28 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     plt.close()
 
+def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
+
+    fig, axes = plt.subplots(1, 3, figsize=(3 * figsize, 1 * figsize))
+    axes[0].set_title("Original", fontsize=15)
+    axes[1].set_title("Predicted", fontsize=15)
+    axes[2].set_title("Overlay", fontsize=15)
+
+    axes[0].imshow(image)
+    axes[0].set_axis_off()
+    axes[1].imshow(colorize_mask(predicted, n_classes=4))
+    axes[1].set_axis_off()
+    axes[2].imshow(image)
+    axes[2].imshow(colorize_mask(predicted, n_classes=4), alpha=0.5)
+    axes[2].set_axis_off()
+
+    if (output_path != None):
+        output_name = os.path.join(output_path, image_name)
+        fig.savefig(output_name)
+
+    plt.close()
+
+
 def visualize_line_detection_result(orig_img, edges, hough_orig, hough_edges, num_images, output_path, output_name):
 
     figsize=15
