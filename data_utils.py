@@ -6,8 +6,10 @@ from PIL import Image
 import os
 import matplotlib.pyplot as plt
 import cv2
+import json
 
-def get_imgs_masks(path):
+# depricated
+def _get_imgs_masks(path):
     masks = glob.glob(path)
     imgs = list(map(lambda x: x.replace("_NEW.png", ".jpg"), masks))
     imgs_list = []
@@ -17,6 +19,25 @@ def get_imgs_masks(path):
         masks_list.append(np.array(Image.open(mask))[...,0]) 
 
     return imgs_list, masks_list
+
+def get_imgs_masks(path):
+
+    with open(os.path.join("input", "dataset.json")) as dataset_json:
+        names = json.load(dataset_json)
+    train_names = names["BoxA_DS1"]["train"]
+    test_names = names["BoxA_DS1"]["test"]
+
+    train_imgs, train_masks = [], []
+    for train_name in train_names:
+        train_imgs.append(np.array(Image.open(os.path.join(path, train_name))))
+        train_masks.append(np.array(Image.open(os.path.join(path, train_name.replace(".jpg", "_NEW.png"))))[...,0])
+
+    test_imgs, test_masks = [], []
+    for test_name in test_names:
+        test_imgs.append(np.array(Image.open(os.path.join(path, test_name))))
+        test_masks.append(np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[...,0])
+
+    return np.stack(train_imgs), np.stack(test_imgs), np.stack(train_masks), np.stack(test_masks)
 
 def get_unmarked_images(path, marked_path):
     marked = glob.glob(os.path.join(marked_path, "*.jpg"))
