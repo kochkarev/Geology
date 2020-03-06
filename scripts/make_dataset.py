@@ -35,6 +35,32 @@ def parse_dataset(path):
     with open(os.path.join("input", "dataset.json"), 'w') as fp:
         json.dump(result, fp, indent=4)
 
+def check_parsed_dataset(path_json, path_dataset):
+
+    with open(path_json) as dataset_json:
+        dataset = json.load(dataset_json)
+    
+    for dset in dataset.keys():
+
+        marked = dataset[dset]["marked"]
+        test = dataset[dset]["test"]
+        train = dataset[dset]["train"]
+        marked.sort()
+        test.sort()
+        train.sort()
+
+        diff = list(set(marked) - set(test + train))
+        if (diff):
+            print("Warning in dataset {}: test + train != marked".format(dset))  
+            print('Conflicts:')
+            for name in diff:
+                print('    {}'.format(name))
+
+        for name in marked:
+            if not os.path.exists(os.path.join(path_dataset, name)):
+                print("Error: no file: {} in directory: {}".format(name, path_dataset))
+        print('\n')
+
 def make_dataset():
 
     proj_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
@@ -84,17 +110,12 @@ def make_dataset():
         shutil.rmtree(dataset_dir)
         os.mkdir(dataset_dir)
 
-    names = []
+    parse_dataset(os.path.join(proj_dir, 'input', 'OreGeology-Dateset.xlsx'))
 
-    inp = os.path.join(proj_dir, 'input', 'OreGeology-Dateset.xlsx')
-    wb = xlrd.open_workbook(inp) 
-    sheet = wb.sheet_by_index(1)
-    sheet.cell_value(0, 0) 
-    for i in range(sheet.nrows):
-        if type(sheet.cell_value(i, 0)) == type("aaa"):
-            names.append(sheet.cell_value(i, 0))
-
-    names = list(dict.fromkeys(names))
+    parsed_path = os.path.join(proj_dir, 'input', 'dataset.json')
+    with open(parsed_path) as dataset_json:
+        names = json.load(dataset_json)
+    names = names["BoxA_DS1"]["marked"]
 
     marked_images = 0
     for fname in names:
@@ -109,6 +130,8 @@ def make_dataset():
             marked_images += 1
 
     print("{} marked images in dataset of {} images".format(marked_images, dataset_size))
+
+    check_parsed_dataset(parsed_path, dataset_dir)
 
 if __name__ == "__main__":
     make_dataset()
