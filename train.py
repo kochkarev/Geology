@@ -5,7 +5,7 @@ from sklearn.model_selection import train_test_split
 from keras.utils import to_categorical
 from keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
-from keras.callbacks import ModelCheckpoint, CSVLogger
+from keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
 from keras.optimizers import Adam, SGD
 from metrics import iou, iou_multiclass
 from utils import plot_segm_history
@@ -63,8 +63,16 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         save_best_only=True,
     )
 
+    reduce_lr = ReduceLROnPlateau(
+        monitor='val_loss',
+        factor=0.2,
+        patience=7,
+        min_lr=0.000001,
+        verbose=1
+    )
+
     model.compile(
-        optimizer=Adam(), 
+        optimizer=Adam(learning_rate=5*0.001), 
         loss = 'categorical_crossentropy',
         metrics=[iou]
     )
@@ -93,7 +101,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         epochs=epochs,
         validation_data=iter(valid_generator),
         validation_steps=steps_per_epoch,
-        callbacks=[callback_checkpoint, callback_test, csv_logger]
+        callbacks=[callback_checkpoint, callback_test, csv_logger, reduce_lr]
     )
 
     if show_history:
@@ -102,4 +110,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 if __name__ == "__main__":
     gc.enable()
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")#, "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=20, path=path, batch_size=8, patch_size=512)
+    train(num_classes=4, num_layers=3, epochs=100, path=path, batch_size=8, patch_size=512)
