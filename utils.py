@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths
 import os
 from PIL import Image
+import shutil
 
 def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
@@ -126,39 +127,80 @@ def visualize_error_mask(mask : np.ndarray, show=False):
 
     return mask
 
-def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4, ouput_path=None, epoch=0):
+# def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4, ouput_path=None, epoch=0):
+
+#     cols = 2 if preds is None else 5
+
+#     fig, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
+#     axes[0, 0].set_title("original", fontsize=15) 
+#     axes[0, 1].set_title("ground truth", fontsize=15)
+#     if not (preds is None):
+#         axes[0, 2].set_title("prediction", fontsize=15) 
+#         axes[0, 3].set_title("error map", fontsize=15) 
+#         axes[0, 4].set_title("overlay", fontsize=15)
+    
+#     im_id = 0
+#     for m in range(0, nm_img_to_plot):
+#         axes[m, 0].imshow(images[im_id])
+#         axes[m, 0].set_axis_off()
+#         axes[m, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
+#         axes[m, 1].set_axis_off()        
+#         if not (preds is None):
+#             axes[m, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
+#             axes[m, 2].set_axis_off()
+#             axes[m, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
+#             axes[m, 3].set_axis_off()
+#             axes[m, 4].imshow(images[im_id])
+#             axes[m, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
+#             axes[m, 4].set_axis_off()
+#         im_id += 1
+
+#     if (ouput_path != None):
+#         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
+#         fig.savefig(output_name)
+
+#     plt.close()
+
+def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot = 1, n_classes=4, output_path=None, epoch=0):
 
     cols = 2 if preds is None else 5
 
-    fig, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
-    axes[0, 0].set_title("original", fontsize=15) 
-    axes[0, 1].set_title("ground truth", fontsize=15)
-    if not (preds is None):
-        axes[0, 2].set_title("prediction", fontsize=15) 
-        axes[0, 3].set_title("error map", fontsize=15) 
-        axes[0, 4].set_title("overlay", fontsize=15)
-    
-    im_id = 0
-    for m in range(0, nm_img_to_plot):
-        axes[m, 0].imshow(images[im_id])
-        axes[m, 0].set_axis_off()
-        axes[m, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
-        axes[m, 1].set_axis_off()        
+    output_path_name = os.path.join(output_path, str(epoch + 1) + '_EPOCH')
+    try:
+        os.mkdir(output_path_name)
+    except FileExistsError:
+        shutil.rmtree(output_path_name)
+        os.mkdir(output_path_name)
+
+    for im_id in range(0, nm_img_to_plot):
+
+        fig, axes = plt.subplots(2, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
+        axes[0, 0].set_title("original", fontsize=15) 
+        axes[0, 1].set_title("ground truth", fontsize=15)
         if not (preds is None):
-            axes[m, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
-            axes[m, 2].set_axis_off()
-            axes[m, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
-            axes[m, 3].set_axis_off()
-            axes[m, 4].imshow(images[im_id])
-            axes[m, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
-            axes[m, 4].set_axis_off()
-        im_id += 1
+            axes[0, 2].set_title("prediction", fontsize=15) 
+            axes[0, 3].set_title("error map", fontsize=15) 
+            axes[0, 4].set_title("overlay", fontsize=15)
 
-    if (ouput_path != None):
-        output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
-        fig.savefig(output_name)
+        axes[1, 0].imshow(images[im_id])
+        axes[1, 0].set_axis_off()
+        axes[1, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
+        axes[1, 1].set_axis_off()        
+        if not (preds is None):
+            axes[1, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
+            axes[1, 2].set_axis_off()
+            axes[1, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
+            axes[1, 3].set_axis_off()
+            axes[1, 4].imshow(images[im_id])
+            axes[1, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
+            axes[1, 4].set_axis_off()
 
-    plt.close()
+        if (output_path != None):
+            output_name = os.path.join(output_path_name, str(im_id + 1) + '_image.jpg')
+            fig.savefig(output_name)
+
+        plt.close()
+
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
