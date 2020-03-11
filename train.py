@@ -72,7 +72,7 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     )
 
     model.compile(
-        optimizer=Adam(learning_rate=5*0.001), 
+        optimizer=Adam(), 
         loss = 'categorical_crossentropy',
         metrics=[iou]
     )

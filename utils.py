@@ -174,26 +174,26 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
 
     for im_id in range(0, nm_img_to_plot):
 
-        fig, axes = plt.subplots(2, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
-        axes[0, 0].set_title("original", fontsize=15) 
-        axes[0, 1].set_title("ground truth", fontsize=15)
+        fig, axes = plt.subplots(1, cols, figsize=(cols * figsize, figsize))
+        axes[0].set_title("original", fontsize=15) 
+        axes[1].set_title("ground truth", fontsize=15)
         if not (preds is None):
-            axes[0, 2].set_title("prediction", fontsize=15) 
-            axes[0, 3].set_title("error map", fontsize=15) 
-            axes[0, 4].set_title("overlay", fontsize=15)
+            axes[2].set_title("prediction", fontsize=15) 
+            axes[3].set_title("error map", fontsize=15) 
+            axes[4].set_title("overlay", fontsize=15)
 
-        axes[1, 0].imshow(images[im_id])
-        axes[1, 0].set_axis_off()
-        axes[1, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
-        axes[1, 1].set_axis_off()        
+        axes[0].imshow(images[im_id])
+        axes[0].set_axis_off()
+        axes[1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
+        axes[1].set_axis_off()        
         if not (preds is None):
-            axes[1, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
-            axes[1, 2].set_axis_off()
-            axes[1, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
-            axes[1, 3].set_axis_off()
-            axes[1, 4].imshow(images[im_id])
-            axes[1, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
-            axes[1, 4].set_axis_off()
+            axes[2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
+            axes[2].set_axis_off()
+            axes[3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
+            axes[3].set_axis_off()
+            axes[4].imshow(images[im_id])
+            axes[4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
+            axes[4].set_axis_off()
 
         if (output_path != None):
             output_name = os.path.join(output_path_name, str(im_id + 1) + '_image.jpg')

@@ -108,7 +108,7 @@ class TestResults(Callback):
         
         print('Processing visualization:')
         visualize_segmentation_result(self.images, [np.argmax(i, axis=2) for i in self.masks], [np.argmax(i, axis=2) for i in predicted], 
-                                    figsize=6, nm_img_to_plot=len(predicted), n_classes=self.n_classes, ouput_path=self.output_path, epoch=epoch)
+                                    figsize=6, nm_img_to_plot=len(predicted), n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
         print('Visualization results saved in {} directory'.format(self.output_path))
 
     def on_train_end(self, logs=None):
