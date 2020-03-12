@@ -71,39 +71,39 @@ class TestResults(Callback):
             print('Predicting:')
             pred = self.predict_image(image)
             predicted.append(pred)
-            print('Calculating metrics:')
-            metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
-                                        pred[self.offset:-self.offset,self.offset:-self.offset,...], all_metrics, self.n_classes)
-            # if self.no_split:
-            #     pred_no_split = self.model.predict(image)
-            #     metrics_no_split = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
-            #           np.argmax(pred_no_split[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics_no_split)
-            for metric in metrics:
-                print('Metrics for each class:')
-                i = 0
-                for value in metric[1]:
-                    print("{} : {}".format(metric[0], value))
-                    tmp_metrics_per_cls_res[i].append(value)
-                    i +=1
-                metrics_values[metric[0]] += sum(metric[1]) / len(metric[1])
+            # print('Calculating metrics:')
+            # metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
+            #                             pred[self.offset:-self.offset,self.offset:-self.offset,...], all_metrics, self.n_classes)
+                        # if self.no_split:
+                        #     pred_no_split = self.model.predict(image)
+                        #     metrics_no_split = calc_metrics(np.argmax(mask[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), 
+                        #           np.argmax(pred_no_split[self.offset:-self.offset,self.offset:-self.offset,...], axis=2), all_metrics_no_split)
+            # for metric in metrics:
+            #     print('Metrics for each class:')
+            #     i = 0
+            #     for value in metric[1]:
+            #         print("{} : {}".format(metric[0], value))
+            #         tmp_metrics_per_cls_res[i].append(value)
+            #         i +=1
+            #     metrics_values[metric[0]] += sum(metric[1]) / len(metric[1])
 
-            # if self.no_split:
-            #     for metric in metrics_no_split:
-            #         metrics_values_no_split[metric[0]] += metric[1]
+                        # if self.no_split:
+                        #     for metric in metrics_no_split:
+                        #         metrics_values_no_split[metric[0]] += metric[1]
 
             ii += 1
 
-        for i in range(self.n_classes):
-            self.metrics_per_cls_res[i].append(mean(tmp_metrics_per_cls_res[i]))
+        # for i in range(self.n_classes):
+        #     self.metrics_per_cls_res[i].append(mean(tmp_metrics_per_cls_res[i]))
 
-        print('Average metrics values:')
-        for metrics_name in metrics_values.keys():
-            self.metrics_results[metrics_name][epoch+1] = metrics_values[metrics_name] / self.images.shape[0]
-            print('{name} : {val}'.format(name=metrics_name, val=(metrics_values[metrics_name] / self.images.shape[0])))
-        # if self.no_split:
-        #     print('Metrics values for image w/o splitting to patches:')
-        #     for metrics_name in metrics_values_no_split.keys():
-        #         print('{name} : {val}'.format(name=metrics_name, val=(metrics_values_no_split[metrics_name] / self.images.shape[0])))
+        # print('Average metrics values:')
+        # for metrics_name in metrics_values.keys():
+        #     self.metrics_results[metrics_name][epoch+1] = metrics_values[metrics_name] / self.images.shape[0]
+        #     print('{name} : {val}'.format(name=metrics_name, val=(metrics_values[metrics_name] / self.images.shape[0])))
+                        # if self.no_split:
+                        #     print('Metrics values for image w/o splitting to patches:')
+                        #     for metrics_name in metrics_values_no_split.keys():
+                        #         print('{name} : {val}'.format(name=metrics_name, val=(metrics_values_no_split[metrics_name] / self.images.shape[0])))
 
         
         print('Processing visualization:')

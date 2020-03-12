@@ -161,11 +161,50 @@ def visualize_error_mask(mask : np.ndarray, show=False):
 
 #     plt.close()
 
+# def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot = 1, n_classes=4, output_path=None, epoch=0):
+
+#     cols = 2 if preds is None else 5
+
+#     output_path_name = os.path.join(output_path, str(epoch + 1) + '_EPOCH')
+#     try:
+#         os.mkdir(output_path_name)
+#     except FileExistsError:
+#         shutil.rmtree(output_path_name)
+#         os.mkdir(output_path_name)
+
+#     for im_id in range(0, nm_img_to_plot):
+
+#         fig, axes = plt.subplots(1, cols, figsize=(cols * figsize, figsize))
+#         axes[0].set_title("original", fontsize=15) 
+#         axes[1].set_title("ground truth", fontsize=15)
+#         if not (preds is None):
+#             axes[2].set_title("prediction", fontsize=15) 
+#             axes[3].set_title("error map", fontsize=15) 
+#             axes[4].set_title("overlay", fontsize=15)
+
+#         axes[0].imshow(images[im_id])
+#         axes[0].set_axis_off()
+#         axes[1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
+#         axes[1].set_axis_off()        
+#         if not (preds is None):
+#             axes[2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
+#             axes[2].set_axis_off()
+#             axes[3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
+#             axes[3].set_axis_off()
+#             axes[4].imshow(images[im_id])
+#             axes[4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
+#             axes[4].set_axis_off()
+
+#         if (output_path != None):
+#             output_name = os.path.join(output_path_name, str(im_id + 1) + '_image.jpg')
+#             fig.savefig(output_name)
+
+#         plt.close()
+
 def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot = 1, n_classes=4, output_path=None, epoch=0):
 
-    cols = 2 if preds is None else 5
-
     output_path_name = os.path.join(output_path, str(epoch + 1) + '_EPOCH')
+
     try:
         os.mkdir(output_path_name)
     except FileExistsError:
@@ -173,34 +212,14 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
         os.mkdir(output_path_name)
 
     for im_id in range(0, nm_img_to_plot):
+        (Image.fromarray(images[im_id].astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_src.png'))
+        (Image.fromarray(colorize_mask(masks[im_id], n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_gt.png'))
 
-        fig, axes = plt.subplots(1, cols, figsize=(cols * figsize, figsize))
-        axes[0].set_title("original", fontsize=15) 
-        axes[1].set_title("ground truth", fontsize=15)
         if not (preds is None):
-            axes[2].set_title("prediction", fontsize=15) 
-            axes[3].set_title("error map", fontsize=15) 
-            axes[4].set_title("overlay", fontsize=15)
-
-        axes[0].imshow(images[im_id])
-        axes[0].set_axis_off()
-        axes[1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
-        axes[1].set_axis_off()        
-        if not (preds is None):
-            axes[2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
-            axes[2].set_axis_off()
-            axes[3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
-            axes[3].set_axis_off()
-            axes[4].imshow(images[im_id])
-            axes[4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
-            axes[4].set_axis_off()
-
-        if (output_path != None):
-            output_name = os.path.join(output_path_name, str(im_id + 1) + '_image.jpg')
-            fig.savefig(output_name)
-
-        plt.close()
-
+            (Image.fromarray(colorize_mask(preds[im_id], n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_predicted.png'))
+            
+            err_mask = create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)
+            (Image.fromarray(visualize_error_mask(err_mask).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_error.png'))
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
