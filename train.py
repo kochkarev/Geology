@@ -16,14 +16,6 @@ from generators import PatchGenerator
 import gc
 
 def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_history=True):
-
-    # x, y = get_imgs_masks(path)
-    # print("Found {num} images and {num1} masks".format(num=len(x), num1=len(y)))
-
-    # x = np.asarray(x, dtype=np.float32) / 255 
-    # y = np.asarray(y, dtype=np.uint8)
-
-    #x_train, x_val, y_train, y_val = train_test_split(x, y, test_size=0.15, random_state=42)
     
     x_train, x_val, y_train, y_val = get_imgs_masks(path)
 
@@ -66,8 +58,8 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
     reduce_lr = ReduceLROnPlateau(
         monitor='val_loss',
         factor=0.2,
-        patience=7,
-        min_lr=0.000001,
+        patience=5,
+        min_lr=0.00001,
         verbose=1
     )
 
@@ -109,5 +101,5 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 
 if __name__ == "__main__":
     gc.enable()
-    path = os.path.join(os.path.dirname(__file__), "input", "dataset")#, "*_NEW.png")
-    train(num_classes=4, num_layers=3, epochs=100, path=path, batch_size=8, patch_size=512)
+    path = os.path.join(os.path.dirname(__file__), "input", "dataset")
+    train(num_classes=4, num_layers=3, epochs=1, path=path, batch_size=8, patch_size=512)
