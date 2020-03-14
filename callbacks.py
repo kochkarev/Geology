@@ -1,13 +1,15 @@
 #import plaidml.keras
 #plaidml.keras.install_backend()
 from keras.callbacks import Callback
-from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask
+from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask, plot_lrs
 import numpy as np
 from data_utils import combine_patches, split_to_patches
 from metrics import calc_metrics
 from PIL import Image
 from statistics import mean
 import os
+import matplotlib.pyplot as plt
+import keras.backend as K
 
 class TestResults(Callback):
 
@@ -27,6 +29,7 @@ class TestResults(Callback):
         self.all_metrics = all_metrics
         self.metrics_results = {i : dict() for i in all_metrics}
         self.metrics_per_cls_res = {i : [] for i in range(n_classes)}
+        self.lrs = []
 
     def predict_image(self, img):
 
@@ -55,6 +58,8 @@ class TestResults(Callback):
 
     
     def on_epoch_end(self, epoch, logs=None):
+
+        self.lrs.append(K.eval(self.model.optimizer.lr))
 
         predicted = []
         all_metrics = ['iou']
@@ -115,3 +120,31 @@ class TestResults(Callback):
 
         plot_metrics_history(self.metrics_results)
         plot_per_class_history(self.metrics_per_cls_res)
+        plot_lrs(self.lrs)
+
+# class LearningRateDecay:
+# 	def plot(self, epochs, title="Learning Rate Schedule"):
+# 		# compute the set of learning rates for each corresponding
+# 		# epoch
+# 		lrs = [self(i) for i in epochs]
+# 		# the learning rate schedule
+# 		plt.style.use("ggplot")
+# 		plt.figure()
+# 		plt.plot(epochs, lrs)
+# 		plt.title(title)
+# 		plt.xlabel("Epoch #")
+# 		plt.ylabel("Learning Rate")
+
+# class StepDecay(LearningRateDecay):
+# 	def __init__(self, initAlpha=0.01, factor=0.25, dropEvery=10):
+# 		# store the base initial learning rate, drop factor, and
+# 		# epochs to drop every
+# 		self.initAlpha = initAlpha
+# 		self.factor = factor
+# 		self.dropEvery = dropEvery
+# 	def __call__(self, epoch):
+# 		# compute the learning rate for the current epoch
+# 		exp = np.floor((1 + epoch) / self.dropEvery)
+# 		alpha = self.initAlpha * (self.factor ** exp)
+# 		# return the learning rate
+# 		return float(alpha)

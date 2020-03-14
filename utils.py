@@ -311,3 +311,14 @@ def plot_per_class_history(metrics_values : dict):
     plt.legend([j for j in range(i)], loc='center right', fontsize=15)
     fig.savefig(os.path.join('per_class_iou' + '.jpg'))
     plt.show()
+
+def plot_lrs(lrs : list):
+
+    plt.style.use("ggplot")
+    fig = plt.figure()
+    plt.plot([i + 1 for i in range(0, len(lrs))], lrs)
+    plt.title("Learning Rate Schedule")
+    plt.xlabel("Epoch #")
+    plt.ylabel("Learning Rate")
+    fig.savefig(os.path.join('lrs' + '.jpg'))
+    plt.close()

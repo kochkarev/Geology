@@ -82,11 +82,13 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
         all_metrics=['iou']
     )
 
+    # schedule = StepDecay(initAlpha=1e-1, factor=0.25, dropEvery=15)
+
     csv_logger = CSVLogger('training.log')
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size, augment=True)
     valid_generator = PatchGenerator(images=x_val, masks=y_val, patch_size=patch_size, batch_size=batch_size)
-    steps_per_epoch = 1
+    #steps_per_epoch = 1
     history = model.fit_generator(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -102,4 +104,4 @@ def train(num_classes, num_layers, path, epochs, batch_size, patch_size, show_hi
 if __name__ == "__main__":
     gc.enable()
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(num_classes=4, num_layers=3, epochs=1, path=path, batch_size=8, patch_size=512)
+    train(num_classes=4, num_layers=3, epochs=100, path=path, batch_size=8, patch_size=512)
