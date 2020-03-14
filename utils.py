@@ -35,30 +35,30 @@ import cv2
 random.seed(0)
 class_colors = [(random.randint(0,255), random.randint(0,255), random.randint(0,255)) for _ in range(5000)]
 
-def visualize_segmentation_dataset(path, n_classes):
+# def visualize_segmentation_dataset(path, n_classes):
 
-    img_seg_pairs = get_pairs_from_paths(path)
+#     img_seg_pairs = get_pairs_from_paths(path)
 
-    colors = class_colors
+#     colors = class_colors
 
-    print("Press any key to navigate. ")
-    for im_fn , seg_fn in img_seg_pairs :
+#     print("Press any key to navigate. ")
+#     for im_fn , seg_fn in img_seg_pairs :
 
-        img = cv2.imread(im_fn)
-        seg = cv2.imread(seg_fn)
-        print("Found the following classes" , np.unique(seg))
+#         img = cv2.imread(im_fn)
+#         seg = cv2.imread(seg_fn)
+#         print("Found the following classes" , np.unique(seg))
 
-        seg_img = np.zeros_like(seg)
+#         seg_img = np.zeros_like(seg)
 
-        for c in range(n_classes):
-            seg_img[:,:,0] += ((seg[:,:,0] == c) * (colors[c][0])).astype('uint8')
-            seg_img[:,:,1] += ((seg[:,:,0] == c) * (colors[c][1])).astype('uint8')
-            seg_img[:,:,2] += ((seg[:,:,0] == c) * (colors[c][2])).astype('uint8')
+#         for c in range(n_classes):
+#             seg_img[:,:,0] += ((seg[:,:,0] == c) * (colors[c][0])).astype('uint8')
+#             seg_img[:,:,1] += ((seg[:,:,0] == c) * (colors[c][1])).astype('uint8')
+#             seg_img[:,:,2] += ((seg[:,:,0] == c) * (colors[c][2])).astype('uint8')
 
-        cv2.imshow("img" , cv2.resize(img, (0, 0), fx=0.2, fy=0.2))
-        cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
-        if cv2.waitKey(0) == 27: return
-    cv2.destroyAllWindows()
+#         cv2.imshow("img" , cv2.resize(img, (0, 0), fx=0.2, fy=0.2))
+#         cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
+#         if cv2.waitKey(0) == 27: return
+#     cv2.destroyAllWindows()
 
 def colorize_mask(mask, n_classes):
 
@@ -79,28 +79,28 @@ def contrast_mask(mask : np.ndarray):
     k = 255 / np.max(mask)
     return k * mask
 
-def compare_masks_red(truth, pred):
+# def compare_masks_red(truth, pred):
 
-    difference = cv2.subtract(truth, pred)
+#     difference = cv2.subtract(truth, pred)
 
-    gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
-    _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-    difference[mask != 255] = [0, 0, 255]
+#     gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
+#     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
+#     difference[mask != 255] = [0, 0, 255]
 
-    return difference
+#     return difference
 
-def compare_masks_rgb(truth, pred):
+# def compare_masks_rgb(truth, pred):
 
-    max1 = np.amax(truth)
-    max2 = np.amax(pred)
+    # max1 = np.amax(truth)
+    # max2 = np.amax(pred)
 
-    height = truth.shape[0]
-    width = truth.shape[1]
-    blank_image = np.zeros((height, width, 3), np.uint8) # BGR
-    blank_image[:,:,1] = np.copy(np.multiply(truth[:,:,0], 255 / max1)) # Green
-    blank_image[:,:,2] = np.copy(np.multiply(pred[:,:,0], 255 / max2)) # Red
+    # height = truth.shape[0]
+    # width = truth.shape[1]
+    # blank_image = np.zeros((height, width, 3), np.uint8) # BGR
+    # blank_image[:,:,1] = np.copy(np.multiply(truth[:,:,0], 255 / max1)) # Green
+    # blank_image[:,:,2] = np.copy(np.multiply(pred[:,:,0], 255 / max2)) # Red
 
-    return blank_image
+    # return blank_image
 
 def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
 
@@ -211,8 +211,11 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
         shutil.rmtree(output_path_name)
         os.mkdir(output_path_name)
 
+    alpha = 0.6
+
     for im_id in range(0, nm_img_to_plot):
-        (Image.fromarray(images[im_id].astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_src.png'))
+        k = 255 / np.amax(images[im_id])
+        (Image.fromarray((k*images[im_id]).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_src.png'))
         (Image.fromarray(colorize_mask(masks[im_id], n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_gt.png'))
 
         if not (preds is None):
@@ -220,6 +223,8 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
             
             err_mask = create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)
             (Image.fromarray(visualize_error_mask(err_mask).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_error.png'))
+
+            (Image.fromarray((alpha*k*images[im_id] + (1 - alpha)*visualize_error_mask(err_mask)).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_overlay.png'))
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
