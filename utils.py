@@ -216,10 +216,10 @@ def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_t
     for im_id in range(0, nm_img_to_plot):
         k = 255 / np.amax(images[im_id])
         (Image.fromarray((k*images[im_id]).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_src.png'))
-        (Image.fromarray(colorize_mask(masks[im_id], n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_gt.png'))
+        (Image.fromarray(colorize_mask(np.dstack((masks[im_id],masks[im_id],masks[im_id])), n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_gt.png'))
 
         if not (preds is None):
-            (Image.fromarray(colorize_mask(preds[im_id], n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_predicted.png'))
+            (Image.fromarray(colorize_mask(np.dstack((preds[im_id],preds[im_id],preds[im_id])), n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_predicted.png'))
             
             err_mask = create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)
             (Image.fromarray(visualize_error_mask(err_mask).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_error.png'))
