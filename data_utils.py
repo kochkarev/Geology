@@ -1,12 +1,9 @@
-#import plaidml.keras
-#plaidml.keras.install_backend()
 import numpy as np
 import glob
 from PIL import Image
 import os
-import matplotlib.pyplot as plt
-import cv2
 import json
+import skimage.io as io
 
 # depricated
 def _get_imgs_masks(path):
@@ -27,17 +24,22 @@ def get_imgs_masks(path):
     train_names = names["BoxA_DS1"]["train"]
     test_names = names["BoxA_DS1"]["test"]
 
-    train_imgs, train_masks = [], []
-    for train_name in train_names:
-        train_imgs.append(np.array(Image.open(os.path.join(path, train_name))))
-        train_masks.append(np.array(Image.open(os.path.join(path, train_name.replace(".jpg", "_NEW.png"))))[...,0])
+    n_train, n_test = len(train_names), len(test_names)
+    img_shape = np.array(Image.open(os.path.join(path, train_names[0]))).shape
 
-    test_imgs, test_masks = [], []
-    for test_name in test_names:
-        test_imgs.append(np.array(Image.open(os.path.join(path, test_name))))
-        test_masks.append(np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[...,0])
+    train_data = np.zeros([n_train, img_shape[0], img_shape[1], 3], dtype=np.float32)
+    train_masks = np.zeros([n_train, img_shape[0], img_shape[1]], dtype=np.uint8)
+    test_data = np.zeros([n_test, img_shape[0], img_shape[1], 3], dtype=np.float32)
+    test_masks = np.zeros([n_test, img_shape[0], img_shape[1]], dtype=np.uint8)
 
-    return np.stack(train_imgs), np.stack(test_imgs), np.stack(train_masks), np.stack(test_masks)
+    for i, train_name in enumerate(train_names):
+        train_data[i, ...] = np.array(Image.open(os.path.join(path, train_name))).astype(np.float32) / 255
+        train_masks[i, ...] = np.array(Image.open(os.path.join(path, train_name.replace(".jpg", "_NEW.png"))))[..., 0]
+    for i, test_name in enumerate(test_names):
+        test_data[i, ...] = np.array(Image.open(os.path.join(path, test_name))).astype(np.float32) / 255
+        test_masks[i, ...] = np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[..., 0]
+
+    return train_data, test_data, train_masks, test_masks
 
 def get_unmarked_images(path, marked_path):
     marked = glob.glob(os.path.join(marked_path, "*.jpg"))

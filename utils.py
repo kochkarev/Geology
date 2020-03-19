@@ -1,5 +1,3 @@
-#import plaidml.keras
-#plaidml.keras.install_backend()
 import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths
@@ -127,104 +125,32 @@ def visualize_error_mask(mask : np.ndarray, show=False):
 
     return mask
 
-# def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot=2, n_classes=4, ouput_path=None, epoch=0):
 
-#     cols = 2 if preds is None else 5
+def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output_path=None, epoch=0):
+    output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
+    os.makedirs(output_path_name, exist_ok=True)
+    alpha = 0.75
 
-#     fig, axes = plt.subplots(nm_img_to_plot, cols, figsize=(cols * figsize, nm_img_to_plot * figsize))
-#     axes[0, 0].set_title("original", fontsize=15) 
-#     axes[0, 1].set_title("ground truth", fontsize=15)
-#     if not (preds is None):
-#         axes[0, 2].set_title("prediction", fontsize=15) 
-#         axes[0, 3].set_title("error map", fontsize=15) 
-#         axes[0, 4].set_title("overlay", fontsize=15)
-    
-#     im_id = 0
-#     for m in range(0, nm_img_to_plot):
-#         axes[m, 0].imshow(images[im_id])
-#         axes[m, 0].set_axis_off()
-#         axes[m, 1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
-#         axes[m, 1].set_axis_off()        
-#         if not (preds is None):
-#             axes[m, 2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
-#             axes[m, 2].set_axis_off()
-#             axes[m, 3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
-#             axes[m, 3].set_axis_off()
-#             axes[m, 4].imshow(images[im_id])
-#             axes[m, 4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
-#             axes[m, 4].set_axis_off()
-#         im_id += 1
+    for i in range(images.shape[0]):
+        Image.fromarray((images[i] * 255).astype(np.uint8)).save(
+            os.path.join(output_path_name, f'image_{i + 1}_src.jpg')
+        )
+        Image.fromarray(colorize_mask(np.dstack((masks[i],masks[i],masks[i])), n_classes=n_classes).astype(np.uint8)).save(
+            os.path.join(output_path_name, f'image_{i + 1}_gt.jpg')
+        )
+        if preds is not None:
+            Image.fromarray(colorize_mask(np.dstack((preds[i],preds[i],preds[i])), n_classes=n_classes).astype(np.uint8)).save(
+                os.path.join(output_path_name, f'image_{i + 1}_pred.jpg')
+            )            
+            err_mask = create_error_mask(masks[i], preds[i], num_classes=n_classes)
+            err_vis = visualize_error_mask(err_mask)
+            Image.fromarray(err_vis.astype(np.uint8)).save(
+                os.path.join(output_path_name, f'image_{i + 1}_error.jpg')
+            )
+            Image.fromarray((alpha*255*images[i] + (1 - alpha)*err_vis).astype(np.uint8)).save(
+                os.path.join(output_path_name, f'image_{i + 1}_overlay.jpg')
+            )
 
-#     if (ouput_path != None):
-#         output_name = os.path.join(ouput_path, str(epoch) + '_EPOCH.jpg')
-#         fig.savefig(output_name)
-
-#     plt.close()
-
-# def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot = 1, n_classes=4, output_path=None, epoch=0):
-
-#     cols = 2 if preds is None else 5
-
-#     output_path_name = os.path.join(output_path, str(epoch + 1) + '_EPOCH')
-#     try:
-#         os.mkdir(output_path_name)
-#     except FileExistsError:
-#         shutil.rmtree(output_path_name)
-#         os.mkdir(output_path_name)
-
-#     for im_id in range(0, nm_img_to_plot):
-
-#         fig, axes = plt.subplots(1, cols, figsize=(cols * figsize, figsize))
-#         axes[0].set_title("original", fontsize=15) 
-#         axes[1].set_title("ground truth", fontsize=15)
-#         if not (preds is None):
-#             axes[2].set_title("prediction", fontsize=15) 
-#             axes[3].set_title("error map", fontsize=15) 
-#             axes[4].set_title("overlay", fontsize=15)
-
-#         axes[0].imshow(images[im_id])
-#         axes[0].set_axis_off()
-#         axes[1].imshow(colorize_mask(masks[im_id], n_classes=n_classes))
-#         axes[1].set_axis_off()        
-#         if not (preds is None):
-#             axes[2].imshow(colorize_mask(preds[im_id], n_classes=n_classes))
-#             axes[2].set_axis_off()
-#             axes[3].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)))
-#             axes[3].set_axis_off()
-#             axes[4].imshow(images[im_id])
-#             axes[4].imshow(visualize_error_mask(create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)), alpha=0.5)
-#             axes[4].set_axis_off()
-
-#         if (output_path != None):
-#             output_name = os.path.join(output_path_name, str(im_id + 1) + '_image.jpg')
-#             fig.savefig(output_name)
-
-#         plt.close()
-
-def visualize_segmentation_result(images, masks, preds=None, figsize=4, nm_img_to_plot = 1, n_classes=4, output_path=None, epoch=0):
-
-    output_path_name = os.path.join(output_path, str(epoch + 1) + '_EPOCH')
-
-    try:
-        os.mkdir(output_path_name)
-    except FileExistsError:
-        shutil.rmtree(output_path_name)
-        os.mkdir(output_path_name)
-
-    alpha = 0.6
-
-    for im_id in range(0, nm_img_to_plot):
-        k = 255 / np.amax(images[im_id])
-        (Image.fromarray((k*images[im_id]).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_src.png'))
-        (Image.fromarray(colorize_mask(np.dstack((masks[im_id],masks[im_id],masks[im_id])), n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_gt.png'))
-
-        if not (preds is None):
-            (Image.fromarray(colorize_mask(np.dstack((preds[im_id],preds[im_id],preds[im_id])), n_classes=n_classes).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_predicted.png'))
-            
-            err_mask = create_error_mask(masks[im_id], preds[im_id], num_classes=n_classes)
-            (Image.fromarray(visualize_error_mask(err_mask).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_error.png'))
-
-            (Image.fromarray((alpha*k*images[im_id] + (1 - alpha)*visualize_error_mask(err_mask)).astype(np.uint8))).save(os.path.join(output_path_name, 'image_' + str(im_id + 1) + '_overlay.png'))
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
@@ -289,7 +215,7 @@ def plot_metrics_history(metrics_values : dict):
         plt.xlabel('epoch', fontsize=20)
         plt.legend([metric], loc='center right', fontsize=15)
         fig.savefig(os.path.join(metric + '.jpg'))
-        plt.show()
+        # plt.show()
 
 def plot_per_class_history(metrics_values : dict):
 
@@ -310,7 +236,7 @@ def plot_per_class_history(metrics_values : dict):
     plt.xlabel('epoch', fontsize=20)
     plt.legend([j for j in range(i)], loc='center right', fontsize=15)
     fig.savefig(os.path.join('per_class_iou' + '.jpg'))
-    plt.show()
+    # plt.show()
 
 def plot_lrs(lrs : list):
 
