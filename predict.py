@@ -1,18 +1,19 @@
+import tensorflow as tf
 from data_utils import get_imgs_masks, resize_imgs_masks
 from sklearn.model_selection import train_test_split
-from keras.utils import to_categorical
-from keras.preprocessing.image import ImageDataGenerator
+from tensorflow.keras.utils import to_categorical
+from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
-from keras.callbacks import ModelCheckpoint, CSVLogger
-from keras.optimizers import Adam, SGD
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
+from tensorflow.keras.optimizers import Adam, SGD
 from metrics import iou, iou_multiclass
 from utils import plot_segm_history
 import os
 import numpy as np
 from callbacks import TestResults
 from generators import PatchGenerator
-from keras.models import load_model
-from keras.preprocessing import image
+from tensorflow.keras.models import load_model
+from tensorflow.keras.preprocessing import image
 from data_utils import combine_patches, split_to_patches
 from PIL import Image
 from utils import visualize_prediction_result

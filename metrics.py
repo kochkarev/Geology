@@ -1,9 +1,8 @@
-#import plaidml.keras
-#plaidml.keras.install_backend()
-from keras import backend as K
+import tensorflow as tf
+from tensorflow.keras import backend as K
 import numpy as np
 
-def calc_metrics(mask_gt : np.ndarray, mask_pred : np.ndarray, metrics : list, num_classes : int):
+def calc_metrics(mask_gt: np.ndarray, mask_pred: np.ndarray, metrics: list, num_classes: int):
 
     metrics_dict = {'iou' : iou_multiclass}
     results = []
