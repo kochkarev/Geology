@@ -2,7 +2,7 @@ import tensorflow as tf
 from data_utils import get_imgs_masks
 from tensorflow.keras.utils import to_categorical
 from unet import custom_unet
-from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau
+from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 from tensorflow.keras.optimizers import Adam, SGD
 from metrics import iou, iou_multiclass
 from utils import plot_segm_history
@@ -15,20 +15,20 @@ from time import time
 def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, show_history=True):
     
     t1 = time()
-    x_train, x_val, y_train, y_val = get_imgs_masks(path)
+    x_train, x_test, y_train, y_test = get_imgs_masks(path)
     t2 = time()
     print(f'load time: {t2-t1} seconds')
-    print(x_train.shape, y_train.shape, x_val.shape, y_val.shape)
+    print(x_train.shape, y_train.shape, x_test.shape, y_test.shape)
 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
-    print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
+    print('Test data size: {} images and {} masks'.format(x_test.shape[0], y_test.shape[0]))
 
     aug_factor = 5
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     print('Steps per epoch: {}'.format(steps_per_epoch))
 
     y_train = to_categorical(y_train, num_classes=n_classes)
-    y_val = to_categorical(y_val, num_classes=n_classes)
+    y_test = to_categorical(y_test, num_classes=n_classes)
 
     input_shape = (patch_size, patch_size, 3)
 
@@ -45,7 +45,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     callback_checkpoint = ModelCheckpoint(
         model_filename, 
         verbose=1, 
-        monitor='val_loss', 
+        monitor='loss', 
         save_best_only=True,
     )
 
@@ -64,8 +64,8 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     )
 
     callback_test = TestResults(
-        images=x_val, 
-        masks=y_val, 
+        images=x_test, 
+        masks=y_test, 
         model=model, 
         n_classes=n_classes,
         batch_size=batch_size,
@@ -73,6 +73,13 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         offset=2 * n_layers,
         output_path='output',
         all_metrics=['iou']
+    )
+
+    early_stop = EarlyStopping(
+        monitor='loss',
+        min_delta=0.001,
+        patience=5,
+        restore_best_weights=True
     )
 
     csv_logger = CSVLogger('training.log')
@@ -83,7 +90,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
-        callbacks=[callback_checkpoint, callback_test, csv_logger, reduce_lr],
+        callbacks=[callback_checkpoint, callback_test, csv_logger, reduce_lr, early_stop],
     )
 
     if show_history:
@@ -91,4 +98,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=4, epochs=2, path=path, batch_size=8, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=4, epochs=1, path=path, batch_size=8, patch_size=512)
