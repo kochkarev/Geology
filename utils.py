@@ -4,6 +4,7 @@ from data_utils import get_pairs_from_paths
 import os
 from PIL import Image
 import shutil
+from config import classes_mask, classes_colors
 
 def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
     # summarize history for iou
@@ -27,36 +28,11 @@ def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=[
     fig2.savefig(os.path.join(output_path, 'loss.jpg'))
     plt.show()
 
-import random
-import cv2
+def hex_to_rgb(hex: str):
+    h = hex.lstrip('#')
+    return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
 
-random.seed(0)
-class_colors = [(random.randint(0,255), random.randint(0,255), random.randint(0,255)) for _ in range(5000)]
-
-# def visualize_segmentation_dataset(path, n_classes):
-
-#     img_seg_pairs = get_pairs_from_paths(path)
-
-#     colors = class_colors
-
-#     print("Press any key to navigate. ")
-#     for im_fn , seg_fn in img_seg_pairs :
-
-#         img = cv2.imread(im_fn)
-#         seg = cv2.imread(seg_fn)
-#         print("Found the following classes" , np.unique(seg))
-
-#         seg_img = np.zeros_like(seg)
-
-#         for c in range(n_classes):
-#             seg_img[:,:,0] += ((seg[:,:,0] == c) * (colors[c][0])).astype('uint8')
-#             seg_img[:,:,1] += ((seg[:,:,0] == c) * (colors[c][1])).astype('uint8')
-#             seg_img[:,:,2] += ((seg[:,:,0] == c) * (colors[c][2])).astype('uint8')
-
-#         cv2.imshow("img" , cv2.resize(img, (0, 0), fx=0.2, fy=0.2))
-#         cv2.imshow("seg_img" , cv2.resize(seg_img, (0, 0), fx=0.2, fy=0.2))
-#         if cv2.waitKey(0) == 27: return
-#     cv2.destroyAllWindows()
+class_colors = [hex_to_rgb(classes_colors[color]) for color in classes_colors]
 
 def colorize_mask(mask, n_classes):
 
