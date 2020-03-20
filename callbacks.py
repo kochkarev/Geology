@@ -97,6 +97,6 @@ class TestResults(Callback):
         print(f'Visualization completed in {t3-t2} seconds')
 
     def on_train_end(self, logs=None):
-        plot_metrics_history(self.metrics_results)
-        plot_per_class_history(self.metrics_per_cls_res)
-        plot_lrs(self.lrs)
+        plot_metrics_history(self.metrics_results, self.output_path)
+        plot_per_class_history(self.metrics_per_cls_res, self.output_path)
+        plot_lrs(self.lrs, self.output_path)

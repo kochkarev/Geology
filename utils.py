@@ -4,9 +4,9 @@ from data_utils import get_pairs_from_paths
 import os
 from PIL import Image
 import shutil
-from config import classes_mask, classes_colors
+from config import classes_colors, classes_mask
 
-def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=['loss', 'val_loss']):
+def plot_segm_history(history, output_path, metrics=['iou'], losses=['loss']):
     # summarize history for iou
     fig1 = plt.figure(figsize=(12,6))
     for metric in metrics:
@@ -16,7 +16,6 @@ def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=[
     plt.xlabel('epoch', fontsize=20)
     plt.legend(metrics, loc='center right', fontsize=15)
     fig1.savefig(os.path.join(output_path, 'metrics.jpg'))
-    plt.show()
     # summarize history for loss
     fig2 = plt.figure(figsize=(12,6))    
     for loss in losses:
@@ -26,7 +25,6 @@ def plot_segm_history(history, output_path, metrics=['iou', 'val_iou'], losses=[
     plt.xlabel('epoch', fontsize=20)
     plt.legend(losses, loc='center right', fontsize=15)
     fig2.savefig(os.path.join(output_path, 'loss.jpg'))
-    plt.show()
 
 def hex_to_rgb(hex: str):
     h = hex.lstrip('#')
@@ -177,7 +175,7 @@ def visualize_line_detection_result(orig_img, edges, hough_orig, hough_edges, nu
 
     plt.close()
     
-def plot_metrics_history(metrics_values : dict):
+def plot_metrics_history(metrics_values: dict, output_path: str):
 
     for metric in metrics_values.keys():
 
@@ -190,9 +188,9 @@ def plot_metrics_history(metrics_values : dict):
         plt.ylabel('metric', fontsize=20)
         plt.xlabel('epoch', fontsize=20)
         plt.legend([metric], loc='center right', fontsize=15)
-        fig.savefig(os.path.join(metric + '.jpg'))
+        fig.savefig(os.path.join(output_path, metric + '.jpg'))
 
-def plot_per_class_history(metrics_values : dict):
+def plot_per_class_history(metrics_values: dict, output_path: str):
 
     epochs = len(metrics_values[0])
     fig = plt.figure(figsize=(12,6))
@@ -203,16 +201,16 @@ def plot_per_class_history(metrics_values : dict):
         data = {x : y for x, y in zip(args, vals)}
         lists = sorted(data.items())
         x, y = zip(*lists)
-        plt.plot(x, y, linewidth=3)
+        plt.plot(x, y, linewidth=3, color=classes_colors[classes_mask[class_num]])
         i +=1
 
     plt.suptitle('iou metric per class over epochs', fontsize=20)
     plt.ylabel('metric', fontsize=20)
     plt.xlabel('epoch', fontsize=20)
-    plt.legend([j for j in range(i)], loc='center right', fontsize=15)
-    fig.savefig(os.path.join('per_class_iou' + '.jpg'))
+    plt.legend([classes_mask[j] for j in range(i)], loc='center right', fontsize=15)
+    fig.savefig(os.path.join(output_path, 'per_class_iou.jpg'))
 
-def plot_lrs(lrs : list):
+def plot_lrs(lrs: list, output_path: str):
 
     plt.style.use("ggplot")
     fig = plt.figure()
@@ -220,5 +218,5 @@ def plot_lrs(lrs : list):
     plt.title("Learning Rate Schedule")
     plt.xlabel("Epoch #")
     plt.ylabel("Learning Rate")
-    fig.savefig(os.path.join('lrs' + '.jpg'))
+    fig.savefig(os.path.join(output_path, 'lrs.jpg'))
     plt.close()

@@ -23,7 +23,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
     print('Validation data size: {} images and {} masks'.format(x_val.shape[0], y_val.shape[0]))
 
-    aug_factor = 3
+    aug_factor = 5
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     print('Steps per epoch: {}'.format(steps_per_epoch))
 
@@ -91,4 +91,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=4, epochs=100, path=path, batch_size=8, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=4, epochs=2, path=path, batch_size=8, patch_size=512)

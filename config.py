@@ -1,8 +1,8 @@
 classes_mask = {
-    "Other" : 0,
-    "Sh" : 1,
-    "PyMrc" : 2,
-    "Gl" : 3
+    0 : "Other",
+    1 : "Sh",
+    2 : "PyMrc",
+    3 : "Gl"
 }
 
 classes_colors = {
