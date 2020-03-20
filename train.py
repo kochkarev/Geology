@@ -75,8 +75,6 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         all_metrics=['iou']
     )
 
-    # # schedule = StepDecay(initAlpha=1e-1, factor=0.25, dropEvery=15)
-
     csv_logger = CSVLogger('training.log')
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size, augment=True)
