@@ -103,6 +103,10 @@ def visualize_error_mask(mask : np.ndarray, show=False):
 def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output_path=None, epoch=0):
     output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
     os.makedirs(output_path_name, exist_ok=True)
+    err_log_name = os.path.join(output_path_name, "err_log.txt")
+    if os.path.exists(err_log_name):
+        os.remove(err_log_name)
+    err_log = open(err_log_name, "a+")
     alpha = 0.75
 
     for i in range(images.shape[0]):
@@ -117,6 +121,9 @@ def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output
                 os.path.join(output_path_name, f'image_{i + 1}_pred.jpg')
             )            
             err_mask = create_error_mask(masks[i], preds[i], num_classes=n_classes)
+            err_per = (err_mask.shape[0]*err_mask.shape[1]) / np.sum(err_mask)
+            err_log.write(f'image_{i + 1} : {err_per} %')
+
             err_vis = visualize_error_mask(err_mask)
             Image.fromarray(err_vis.astype(np.uint8)).save(
                 os.path.join(output_path_name, f'image_{i + 1}_error.jpg')
