@@ -98,4 +98,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=4, epochs=1, path=path, batch_size=8, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=4, epochs=100, path=path, batch_size=8, patch_size=512)
