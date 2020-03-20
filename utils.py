@@ -215,7 +215,6 @@ def plot_metrics_history(metrics_values : dict):
         plt.xlabel('epoch', fontsize=20)
         plt.legend([metric], loc='center right', fontsize=15)
         fig.savefig(os.path.join(metric + '.jpg'))
-        # plt.show()
 
 def plot_per_class_history(metrics_values : dict):
 
@@ -236,7 +235,6 @@ def plot_per_class_history(metrics_values : dict):
     plt.xlabel('epoch', fontsize=20)
     plt.legend([j for j in range(i)], loc='center right', fontsize=15)
     fig.savefig(os.path.join('per_class_iou' + '.jpg'))
-    # plt.show()
 
 def plot_lrs(lrs : list):
 
