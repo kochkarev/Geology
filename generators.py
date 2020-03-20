@@ -1,5 +1,6 @@
 import numpy as np
 from random import randrange
+from skimage.transform import resize
 
 class PatchGenerator:
 
@@ -18,6 +19,7 @@ class PatchGenerator:
             assert (self.images.shape[:3] == self.masks.shape[:3]), ("Original images and masks must be equal shape")
 
             batch_files = np.random.choice(a=self.images.shape[0], size=self.batch_size)
+            etha_max = 2
 
             batch_x = []
             batch_y = []
@@ -31,13 +33,20 @@ class PatchGenerator:
                 yy = self.masks[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
 
                 if self.augment:
-                    augmentation = randrange(4)
-                    if augmentation == 1:
+                    augmentation = randrange(5)
+                    if augmentation == 1: #rotate 90
                         xx, yy = np.rot90(xx), np.rot90(yy)
-                    elif augmentation == 2:
+                    elif augmentation == 2: #flip
                         xx, yy = np.flipud(xx), np.flipud(yy)
-                    elif augmentation == 3:
+                    elif augmentation == 3: #flip
                         xx, yy = np.fliplr(xx), np.fliplr(yy)
+                    elif augmentation == 4: #scale
+                        etha = np.random.uniform(1 / etha_max, etha_max) 
+                        size = int(np.ceil(self.patch_size*etha))
+                        i = np.random.choice(a=self.images.shape[1]-size-1)
+                        j = np.random.choice(a=self.images.shape[2]-size-1)
+                        xx = resize(self.images[batch_idx, i : i+size, j : j+size, :], (self.patch_size, self.patch_size))
+                        yy = resize(self.masks[batch_idx, i : i+size, j : j+size, :], (self.patch_size, self.patch_size))
 
                 batch_x.append(xx)
                 batch_y.append(yy)
