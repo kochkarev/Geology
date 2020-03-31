@@ -35,8 +35,8 @@ class PatchGenerator:
 
                 i = np.random.choice(a=self.images.shape[1]-new_size-1)
                 j = np.random.choice(a=self.images.shape[2]-new_size-1)
-                xx = self.images[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
-                yy = self.masks[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
+                xx = self.images[batch_idx, i : i+new_size, j : j+new_size, :]
+                yy = self.masks[batch_idx, i : i+new_size, j : j+new_size, :]
 
                 # Rotating
                 xx, yy = ndimage.rotate(xx, angle, reshape=False), ndimage.rotate(yy, angle, reshape=False)
