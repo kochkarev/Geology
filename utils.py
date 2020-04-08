@@ -30,6 +30,13 @@ def hex_to_rgb(hex: str):
     h = hex.lstrip('#')
     return tuple(int(h[i : i + 2], 16) for i in (0, 2, 4))
 
+def to_heat_map(img, name='jet'):
+    assert img.ndim == 2, 'shape {} is unsupported'.format(img.shape)
+    assert (np.min(img) >= 0.0) and (np.max(img) <= 1.0), 'invalid range {} - {}'.format(np.min(img), np.max(img))
+    cmap = plt.get_cmap(name)
+    heat_img = cmap(img)[..., 0:3]
+    return (heat_img * 255).astype(np.uint8)
+
 class_colors = [hex_to_rgb(classes_colors[color]) for color in classes_colors]
 
 def colorize_mask(mask, n_classes):
