@@ -5,6 +5,11 @@ import os
 from PIL import Image
 import shutil
 from config import classes_colors, classes_mask
+from tensorflow.keras.utils import to_categorical
+from skimage.transform.integral import integral_image
+from scipy.ndimage.morphology import distance_transform_edt
+from config import classes_mask
+from time import time
 
 def plot_segm_history(history, output_path, metrics=['iou'], losses=['loss']):
     # summarize history for iou
@@ -57,29 +62,6 @@ def colorize_mask(mask, n_classes):
 def contrast_mask(mask : np.ndarray):
     k = 255 / np.max(mask)
     return k * mask
-
-# def compare_masks_red(truth, pred):
-
-#     difference = cv2.subtract(truth, pred)
-
-#     gray = cv2.cvtColor(difference, cv2.COLOR_BGR2GRAY)
-#     _, mask = cv2.threshold(gray, 0, 255, cv2.THRESH_BINARY_INV | cv2.THRESH_OTSU)
-#     difference[mask != 255] = [0, 0, 255]
-
-#     return difference
-
-# def compare_masks_rgb(truth, pred):
-
-    # max1 = np.amax(truth)
-    # max2 = np.amax(pred)
-
-    # height = truth.shape[0]
-    # width = truth.shape[1]
-    # blank_image = np.zeros((height, width, 3), np.uint8) # BGR
-    # blank_image[:,:,1] = np.copy(np.multiply(truth[:,:,0], 255 / max1)) # Green
-    # blank_image[:,:,2] = np.copy(np.multiply(pred[:,:,0], 255 / max2)) # Red
-
-    # return blank_image
 
 def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
 
@@ -234,3 +216,39 @@ def plot_lrs(lrs: list, output_path: str):
     plt.ylabel("Learning Rate")
     fig.savefig(os.path.join(output_path, 'lrs.jpg'))
     plt.close()
+
+def create_heatmaps(num_classes: int, patch_size: int, input_img: str, output_path: str, visualize: bool = False):
+
+    classes = [cl for cl in classes_mask.values()]
+    mask = np.array(Image.open(os.path.join("input", "dataset", input_img)))[:,:,0]
+    masks = to_categorical(mask, num_classes=num_classes, dtype=np.uint8)
+
+    input_img = input_img.replace('_NEW.png', '')
+    dts = []
+    for i in range(num_classes):
+        dt = distance_transform_edt(1-masks[:,:,i])
+        dt /= np.max(dt)
+        dt = 1 - dt
+        dts.append(dt)
+        if visualize:
+            Image.fromarray(to_heat_map(dt)).save(os.path.join(output_path, f"DT_{classes[i]}_{input_img}.jpg"))
+        
+    integrals = [np.pad(integral_image(dt), [(1,1),(1,1)], mode='constant') for dt in dts]
+    
+    for integral, cl in zip(integrals, classes):
+        p = np.zeros_like(integral)
+        p = p[:-patch_size - 1, :-patch_size - 1]
+        p = integral[:-patch_size, :-patch_size] + integral[patch_size:, patch_size:] - integral[:-patch_size, patch_size:] - integral[patch_size:, :-patch_size]
+        p = np.pad(p, [(0, patch_size - 1), (0, patch_size - 1)], mode='constant')
+        p = p[:-patch_size - 1, :-patch_size - 1]
+        max_p = np.max(p)
+        min_p = np.min(p)
+        p = p - min_p
+        p = p / (max_p - min_p)
+        p = p ** 3
+        # p = np.where(p > 0.7*np.max(p), p, 0)
+        p = np.pad(p, [(0, patch_size - 1), (0, patch_size - 1)], mode='constant')
+        if visualize:
+            Image.fromarray(to_heat_map(p)).save(os.path.join(output_path, f"HeatMap_{cl}_{input_img}.jpg"))
+        p = p / np.sum(p)
+        np.savez_compressed(os.path.join("input", "dataset", cl + "__" + input_img), p)
