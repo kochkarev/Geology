@@ -15,9 +15,9 @@ from time import time
 def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, show_history=True):
     
     t1 = time()
-    x_train, x_test, y_train, y_test = get_imgs_masks(path)
+    x_train, x_test, y_train, y_test, train_names, _ = get_imgs_masks(path, True, True)
     t2 = time()
-    print(f'load time: {t2-t1} seconds')
+    print(f'Images and masks load time: {t2-t1} seconds')
     print(x_train.shape, y_train.shape, x_test.shape, y_test.shape)
 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
@@ -84,8 +84,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
     csv_logger = CSVLogger('training.log')
 
-    train_generator = PatchGenerator(images=x_train, masks=y_train, patch_size=patch_size, batch_size=batch_size, augment=True)
-    steps_per_epoch = 10
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, augment=True)
     history = model.fit(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -98,4 +97,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=4, epochs=100, path=path, batch_size=8, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=16, epochs=100, path=path, batch_size=8, patch_size=512)

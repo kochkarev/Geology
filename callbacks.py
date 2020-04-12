@@ -65,7 +65,6 @@ class TestResults(Callback):
         for image, mask in zip(self.images, self.masks):
             print(f'Testing on {ii+1} / {self.images.shape[0]}')
             pred = self.predict_image(image)
-            print(pred.shape)
             predicted.append(pred)
             metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
                                         pred[self.offset:-self.offset,self.offset:-self.offset,...], all_metrics, self.n_classes)
