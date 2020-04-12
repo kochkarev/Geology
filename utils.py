@@ -10,6 +10,7 @@ from skimage.transform.integral import integral_image
 from scipy.ndimage.morphology import distance_transform_edt
 from config import classes_mask
 from time import time
+import json
 
 def plot_segm_history(history, output_path, metrics=['iou'], losses=['loss']):
     # summarize history for iou
@@ -217,10 +218,10 @@ def plot_lrs(lrs: list, output_path: str):
     fig.savefig(os.path.join(output_path, 'lrs.jpg'))
     plt.close()
 
-def create_heatmaps(num_classes: int, patch_size: int, input_img: str, output_path: str, visualize: bool = False):
+def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path: str, output_path: str, vis_path: str, visualize: bool = False):
 
     classes = [cl for cl in classes_mask.values()]
-    mask = np.array(Image.open(os.path.join("input", "dataset", input_img)))[:,:,0]
+    mask = np.array(Image.open(os.path.join(input_path, input_img)))[:,:,0]
     masks = to_categorical(mask, num_classes=num_classes, dtype=np.uint8)
 
     input_img = input_img.replace('_NEW.png', '')
@@ -231,7 +232,7 @@ def create_heatmaps(num_classes: int, patch_size: int, input_img: str, output_pa
         dt = 1 - dt
         dts.append(dt)
         if visualize:
-            Image.fromarray(to_heat_map(dt)).save(os.path.join(output_path, f"DT_{classes[i]}_{input_img}.jpg"))
+            Image.fromarray(to_heat_map(dt)).save(os.path.join(vis_path, f"DT_{classes[i]}_{input_img}.jpg"))
         
     integrals = [np.pad(integral_image(dt), [(1,1),(1,1)], mode='constant') for dt in dts]
     
@@ -245,10 +246,22 @@ def create_heatmaps(num_classes: int, patch_size: int, input_img: str, output_pa
         min_p = np.min(p)
         p = p - min_p
         p = p / (max_p - min_p)
-        p = p ** 3
-        # p = np.where(p > 0.7*np.max(p), p, 0)
-        p = np.pad(p, [(0, patch_size - 1), (0, patch_size - 1)], mode='constant')
+        p = p ** 4
+        p = np.where(p > 0.9*np.max(p), p, 0)
+        p = np.pad(p, [(0, patch_size), (0, patch_size)], mode='constant')
         if visualize:
-            Image.fromarray(to_heat_map(p)).save(os.path.join(output_path, f"HeatMap_{cl}_{input_img}.jpg"))
+            Image.fromarray(to_heat_map(p)).save(os.path.join(vis_path, f"HeatMap_{cl}_{input_img}.jpg"))
         p = p / np.sum(p)
-        np.savez_compressed(os.path.join("input", "dataset", cl + "__" + input_img), p)
+        np.savez_compressed(os.path.join(output_path, cl + "__" + input_img), p)
+
+def create_heatmaps(num_classes: int, patch_size: int, input_path: str, output_path: str, vis_path: str, visualize: bool = False):
+
+    with open(os.path.join("input", "dataset.json")) as dataset_json:
+        names = json.load(dataset_json)
+    marked_images = names["BoxA_DS1"]["marked"]
+
+    print('Generating heatmaps..')
+    for mask in marked_images:
+        print(f'    Creating heatmap for {mask}')
+        create_heatmap(num_classes, patch_size, mask.replace(".jpg", "_NEW.png"), input_path, output_path, vis_path, visualize)
+    print(f'Heatmap ndarrays saved in {output_path}. Visualization saved in {vis_path}')

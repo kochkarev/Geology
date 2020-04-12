@@ -4,6 +4,7 @@ from PIL import Image
 import os
 import json
 import skimage.io as io
+from config import classes_mask
 
 # depricated
 def _get_imgs_masks(path):
@@ -17,7 +18,7 @@ def _get_imgs_masks(path):
 
     return imgs_list, masks_list
 
-def get_imgs_masks(path):
+def get_imgs_masks(path: str, load_test: bool = True, return_names: bool = False):
 
     with open(os.path.join("input", "dataset.json")) as dataset_json:
         names = json.load(dataset_json)
@@ -29,17 +30,22 @@ def get_imgs_masks(path):
 
     train_data = np.zeros([n_train, img_shape[0], img_shape[1], 3], dtype=np.float32)
     train_masks = np.zeros([n_train, img_shape[0], img_shape[1]], dtype=np.uint8)
-    test_data = np.zeros([n_test, img_shape[0], img_shape[1], 3], dtype=np.float32)
-    test_masks = np.zeros([n_test, img_shape[0], img_shape[1]], dtype=np.uint8)
+    if load_test:
+        test_data = np.zeros([n_test, img_shape[0], img_shape[1], 3], dtype=np.float32)
+        test_masks = np.zeros([n_test, img_shape[0], img_shape[1]], dtype=np.uint8)
+    else:
+        test_data = None
+        test_masks = None
 
     for i, train_name in enumerate(train_names):
         train_data[i, ...] = np.array(Image.open(os.path.join(path, train_name))).astype(np.float32) / 255
         train_masks[i, ...] = np.array(Image.open(os.path.join(path, train_name.replace(".jpg", "_NEW.png"))))[..., 0]
-    for i, test_name in enumerate(test_names):
-        test_data[i, ...] = np.array(Image.open(os.path.join(path, test_name))).astype(np.float32) / 255
-        test_masks[i, ...] = np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[..., 0]
+    if load_test:
+        for i, test_name in enumerate(test_names):
+            test_data[i, ...] = np.array(Image.open(os.path.join(path, test_name))).astype(np.float32) / 255
+            test_masks[i, ...] = np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[..., 0]
 
-    return train_data, test_data, train_masks, test_masks
+    return (train_data, test_data, train_masks, test_masks) if (not return_names) else (train_data, test_data, train_masks, test_masks, train_names, test_names)
 
 def get_unmarked_images(path, marked_path):
     marked = glob.glob(os.path.join(marked_path, "*.jpg"))
@@ -125,3 +131,27 @@ def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (
     img[-offset:, ...] = fill_color
     img[:,-offset:,...] = fill_color
     return img
+
+def generate_lists_mineral(input_path: str, output_path: str):
+
+    classes = [cl for cl in classes_mask.values()]
+    with open(os.path.join("input", "dataset.json")) as dataset_json:
+        names = json.load(dataset_json)
+    marked_images = names["BoxA_DS1"]["train"]
+    stat = {cl : {} for cl in classes}
+
+    for img in marked_images:
+
+        mask = np.array(Image.open(os.path.join(input_path, img.replace(".jpg","_NEW.png"))))[:,:,0]
+
+        unique, counts = np.unique(mask, return_counts=True)
+        aaa = dict(zip(unique, counts))
+
+        for class_n in range(len(classes_mask)):
+            if class_n in aaa:
+                stat[classes_mask[class_n]][img] = str(aaa[class_n])
+            else:
+                stat[classes_mask[class_n]][img] = "0"
+
+    with open(output_path, 'w') as fp:
+        json.dump(stat, fp, indent=4)
