@@ -27,8 +27,8 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     print('Steps per epoch: {}'.format(steps_per_epoch))
 
-    y_train = to_categorical(y_train, num_classes=n_classes)
-    y_test = to_categorical(y_test, num_classes=n_classes)
+    y_train = to_categorical(y_train, num_classes=n_classes).astype(np.uint8)
+    y_test = to_categorical(y_test, num_classes=n_classes).astype(np.uint8)
 
     input_shape = (patch_size, patch_size, 3)
 
