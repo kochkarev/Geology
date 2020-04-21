@@ -8,6 +8,8 @@ from config import classes_mask
 import json
 from time import time
 from PIL import Image
+from utils import colorize_mask
+from tensorflow.keras.utils import to_categorical
 
 class PatchGenerator:
 
@@ -23,10 +25,14 @@ class PatchGenerator:
         self.load_heatmaps()
 
     def load_heatmaps(self):
+        print('Loading heatmaps..')
+        t1 = time()
         classes = [cl for cl in classes_mask.values()]
         self.heatmaps = []
         for input_img in self.names:
             self.heatmaps.append([(np.load((os.path.join("input", "heatmaps", cl + "__" + input_img.replace(".jpg", ".npz")))))["arr_0"] for cl in classes])
+        t2 = time()
+        print(f'Heatmaps loaded in {t2-t1} seconds')
 
     def __iter__(self):
         
@@ -54,43 +60,54 @@ class PatchGenerator:
 
             for batch_idx in batch_files:
 
-                # etha_max = 2
-                # etha = np.random.uniform(1 / etha_max, etha_max)
-                # angle = np.random.random_integers(0, 360)
-                # new_size = int(np.ceil(self.patch_size * sqrt(2) * etha))
+                etha_max = 2
+                etha = np.random.uniform(1 / etha_max, etha_max)
+                angle = np.random.random_integers(0, 360)
+                new_size = int(np.ceil(self.patch_size * sqrt(2) * etha))
 
                 p_s = self.heatmaps[batch_idx]
                 
                 p = p_s[classes[cur_class]]
                 while (True):
                     n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
-                    if (_xx[n] + self.patch_size < self.masks[batch_idx].shape[0] and _yy[n] + self.patch_size < self.masks[batch_idx].shape[1]):
+                    if (_xx[n] + new_size < self.masks[batch_idx].shape[0] and _yy[n] + new_size < self.masks[batch_idx].shape[1]):
                         break
 
-                yy = self.masks[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
-                xx = self.images[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
+                # Choosing patch
+                yy = self.masks[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                xx = self.images[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]                
+                
+                # Rotate
+                xx = Image.fromarray((255*xx).astype(np.uint8)).rotate(angle=angle, resample=Image.BICUBIC)
+                yy = Image.fromarray((np.argmax(yy, axis=2)).astype(np.uint8)).rotate(angle=angle, resample=Image.NEAREST)
+                
+                # Rescale
+                new_size1 = int(np.ceil(self.patch_size * etha))
+                ii = abs(new_size - new_size1) // 2
+                xx = xx.crop((ii, ii, ii + new_size1, ii + new_size1))
+                yy = yy.crop((ii, ii, ii + new_size1, ii + new_size1))
 
-                # xx, yy = ndimage.rotate(xx, angle, reshape=False), ndimage.rotate(yy, angle, reshape=False)
-
-                # new_size1 = int(np.ceil(self.patch_size * etha))
-                # ii = abs(new_size - new_size1) // 2
-                # xx, yy = xx[ii : ii + new_size1, ii : ii + new_size1, :], yy[ii : ii + new_size1, ii : ii + new_size1, :]
-
-                # xx, yy = resize(xx, (self.patch_size, self.patch_size)), resize(yy, (self.patch_size, self.patch_size))
+                xx = xx.resize(size=(self.patch_size, self.patch_size), resample=Image.BICUBIC)
+                yy = yy.resize(size=(self.patch_size, self.patch_size), resample=Image.NEAREST)
 
                 if randint(0, 1) == 0:
-                    xx, yy = np.flipud(xx), np.flipud(yy)
+                    xx, yy = xx.transpose(Image.FLIP_TOP_BOTTOM), yy.transpose(Image.FLIP_TOP_BOTTOM)
                 else:
-                    xx, yy = np.fliplr(xx), np.fliplr(yy)
+                    xx, yy = xx.transpose(Image.FLIP_LEFT_RIGHT), yy.transpose(Image.FLIP_LEFT_RIGHT)
 
-                if randint(0, 1) == 0:
-                    xx, yy = np.rot90(xx), np.rot90(yy)
+                rotate_flg = randint(0, 3)
+                if rotate_flg == 0:
+                    xx, yy = xx.transpose(Image.ROTATE_90), yy.transpose(Image.ROTATE_90)
+                elif rotate_flg == 1:
+                    xx, yy = xx.transpose(Image.ROTATE_180), yy.transpose(Image.ROTATE_180)
+                elif rotate_flg == 2:
+                    xx, yy = xx.transpose(Image.ROTATE_270), yy.transpose(Image.ROTATE_270)
 
-                batch_x.append(xx)
+                yy = to_categorical(np.array(yy).astype(np.uint8), num_classes=len(classes_mask.keys()))
+                batch_x.append(np.array(xx).astype(np.float32) / 255)
                 batch_y.append(yy)
 
-                yyy = np.argmax(yy, axis=2)
-                unique, counts = np.unique(yyy, return_counts=True)
+                unique, counts = np.unique(np.argmax(yy, axis=2), return_counts=True)
                 aaa = dict(zip(unique, counts))
                 for class_n in range(len(classes_mask)):
                     if class_n in aaa:
