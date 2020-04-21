@@ -259,7 +259,7 @@ def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path
         p = p - min_p
         p = p / (max_p - min_p)
         p = p ** 4
-        p = np.where(p > 0.9*np.max(p), p, 0)
+        p = np.where(p > 0.5*np.max(p), p, 0)
         p = np.pad(p, [(0, patch_size), (0, patch_size)], mode='constant')
         if visualize:
             Image.fromarray(to_heat_map(p)).save(os.path.join(vis_path, f"HeatMap_{cl}_{input_img}.jpg"))
