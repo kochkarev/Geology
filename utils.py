@@ -8,7 +8,6 @@ from config import classes_colors, classes_mask
 from tensorflow.keras.utils import to_categorical
 from skimage.transform.integral import integral_image
 from scipy.ndimage.morphology import distance_transform_edt
-from config import classes_mask
 from time import time
 import json
 
@@ -80,6 +79,7 @@ def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4
 def visualize_error_mask(mask : np.ndarray, show=False):
 
     assert (mask.ndim == 2), ('Expected (H x W) output')
+    assert ((np.array([0,1])==np.unique(mask)).all() == True), ('Expected binary mask')
 
     mask = np.asarray(np.dstack((mask, mask, mask)), dtype=np.uint8)
     mask = np.array(np.where(mask == (0,0,0), (255,0,0), (0,255,0)), dtype=np.uint8)
@@ -89,6 +89,15 @@ def visualize_error_mask(mask : np.ndarray, show=False):
 
     return mask
 
+def error_per_class(gt: np.ndarray, pred: np.ndarray, n_classes: int):
+
+    gt, pred = to_categorical(gt, n_classes), to_categorical(pred, n_classes)
+    results = []
+    for i in range(n_classes):
+        # mask = np.where(gt[...,i] == pred[...,i], 1, 0)
+        mask = np.where(gt[...,i] == 1, 1, 0) * np.where(pred[...,i] == 1, 1, 0)
+        results.append(np.sum(mask) / (mask.shape[0] * mask.shape[1]))
+    return results
 
 def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output_path=None, epoch=0):
     output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
@@ -111,8 +120,11 @@ def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output
                 os.path.join(output_path_name, f'image_{i + 1}_pred.jpg')
             )            
             err_mask = create_error_mask(masks[i], preds[i], num_classes=n_classes)
-            err_per = (err_mask.shape[0]*err_mask.shape[1]) / np.sum(err_mask)
-            err_log.write(f'image_{i + 1} : {err_per} %')
+
+            err_per = error_per_class(masks[i], preds[i], n_classes)
+            err_log.write(f'image_{i + 1} ({100*(np.sum(err_mask) / (err_mask.shape[0]*err_mask.shape[1])):.3f}%):\n')
+            for j in range(n_classes):
+                err_log.write(f'    {classes_mask[j]}: {err_per[j] * 100:.3f}%\n')
 
             err_vis = visualize_error_mask(err_mask)
             Image.fromarray(err_vis.astype(np.uint8)).save(
