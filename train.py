@@ -11,6 +11,8 @@ import numpy as np
 from callbacks import TestResults
 from generators import PatchGenerator
 from time import time
+import functools
+import losses
 
 def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, show_history=True):
     
@@ -57,6 +59,9 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         verbose=1
     )
 
+    custom_loss = functools.partial(losses.dice_loss)
+    custom_loss.__name__ = 'custom_loss'
+
     model.compile(
         optimizer=Adam(), 
         loss = 'categorical_crossentropy',
@@ -78,12 +83,12 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     early_stop = EarlyStopping(
         monitor='loss',
         min_delta=0.001,
-        patience=5,
+        patience=7,
         restore_best_weights=True
     )
 
     csv_logger = CSVLogger('training.log')
-
+    # steps_per_epoch = 5
     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, augment=True)
     history = model.fit(
         iter(train_generator),
@@ -97,4 +102,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=16, epochs=100, path=path, batch_size=8, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=4, epochs=100, path=path, batch_size=16, patch_size=512)
