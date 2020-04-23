@@ -87,52 +87,109 @@ def resize_imgs_masks(imgs, masks, num_layers=None, patch_size=None):
 
     return new_imgs, new_masks
 
-def split_to_patches(img, patch_size, offset, align=None):
+# def split_to_patches(img, patch_size, offset, align=None):
 
+#     patches = []
+#     height = img.shape[0]
+#     width = img.shape[1]
+#     new_h = height
+#     new_w = width
+
+#     if (img.shape[0] - patch_size) % (patch_size - 2 * offset) != 0:
+#         new_h = np.ceil((img.shape[0] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+
+#     if (img.shape[1] - patch_size) % (patch_size - 2 * offset) != 0:
+#         new_w = np.ceil((img.shape[1] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+
+#     img = np.pad(img, ((0, new_h - height), (0, new_w - width), (0, 0)), 'constant')
+
+#     i = 0  
+#     j = 0
+#     while (i + patch_size <= img.shape[0]):
+#         while (j + patch_size <= img.shape[1]):
+#             patches.append(img[i : i + patch_size, j : j + patch_size, :])
+#             j += patch_size - 2 * offset
+#         i += patch_size - 2 * offset
+#         j = 0
+#     return patches, (new_h, new_w)
+
+def split_to_patches(img: np.ndarray, patch_size: int, offset: int, overlay):
+
+    assert overlay == 0 or overlay == 0.5 or overlay == 0.25, 'Overlay should be 100, 50 or 25%'
+    
+    overlay = 1 - overlay
+    eff_size = patch_size - 2 * offset
+    shift = int(overlay * eff_size)
     patches = []
-    height = img.shape[0]
-    width = img.shape[1]
-    new_h = height
-    new_w = width
 
-    if (img.shape[0] - patch_size) % (patch_size - 2 * offset) != 0:
-        new_h = np.ceil((img.shape[0] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+    height, width = img.shape[:2]
+    new_h, new_w = height, width
+    if (img.shape[0] - patch_size) % shift != 0:
+        new_h = int(np.ceil((img.shape[0] - patch_size) / shift)) * shift + patch_size
 
-    if (img.shape[1] - patch_size) % (patch_size - 2 * offset) != 0:
-        new_w = np.ceil((img.shape[1] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
+    if (img.shape[1] - patch_size) % shift != 0:
+        new_w = int(np.ceil((img.shape[1] - patch_size) / shift)) * shift + patch_size
 
     img = np.pad(img, ((0, new_h - height), (0, new_w - width), (0, 0)), 'constant')
-
-    i = 0  
-    j = 0
+    i, j = 0, 0
     while (i + patch_size <= img.shape[0]):
         while (j + patch_size <= img.shape[1]):
             patches.append(img[i : i + patch_size, j : j + patch_size, :])
-            j += patch_size - 2 * offset
-        i += patch_size - 2 * offset
-        j = 0
-    return patches, (new_h, new_w)
-
-def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (255,255,255,255)):
-
-    kk = 0
-    if patches[0].shape[-1] == 3:
-        fill_color = (255,255,255)
-    img = np.full(shape=(size[0], size[1], patches[0].shape[2]), fill_value=fill_color, dtype=patches[0].dtype)
-    i = 0
-    j = 0
-    while (i + patch_size <= size[0]):
-        while (j + patch_size <= size[1]):
-            img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, ...] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, ...]
-            j += patch_size - 2 * offset
-            kk += 1
-        i += patch_size - 2 * offset
-        j = 0
+            j += shift
+        i, j = i + shift, 0
     
-    img = img[:orig_size[0], :orig_size[1], ...]
-    img[-offset:, ...] = fill_color
-    img[:,-offset:,...] = fill_color
-    return img
+    return patches
+
+def combine_patches(patches, patch_size, offset, overlay, orig_shape):
+
+    assert (overlay == 0 or overlay == 0.5 or overlay == 0.25), ('Overlay should be 100, 50 or 25%')
+    
+    overlay = 1 - overlay
+    eff_size = patch_size - 2 * offset
+    shift = int(overlay * eff_size)
+    height, width = orig_shape[:2]
+    new_h, new_w = height, width
+    if (orig_shape[0] - patch_size) % shift != 0:
+        new_h = int(np.ceil((orig_shape[0] - patch_size) / shift)) * shift + patch_size
+
+    if (orig_shape[1] - patch_size) % shift != 0:
+        new_w = int(np.ceil((orig_shape[1] - patch_size) / shift)) * shift + patch_size
+
+    result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=patches[0].dtype)
+    weights = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=np.uint8)
+    i, j, k = 0, 0, 0
+    while (i + patch_size <= new_h):
+        while (j + patch_size <= new_w):
+            result[i + offset : i + patch_size - offset, j + offset : j + patch_size - offset] += patches[k][offset : patch_size - offset, offset : patch_size - offset, ...]
+            weights[i + offset : i + patch_size - offset, j + offset : j + patch_size - offset] += 1
+            j, k = j + shift, k + 1
+        i, j = i + shift, 0
+    weights[weights == 0] = 1
+    result /= weights
+    result = result[:orig_shape[0], :orig_shape[1], ...] # Crop empty border on right and bottom
+    return result[offset : -offset, offset : -offset, ...] # Crop convolution offset
+
+    
+# def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (0,0,0,0)):
+
+#     kk = 0
+#     if patches[0].shape[-1] == 3:
+#         fill_color = (0,0,0)
+#     img = np.full(shape=(size[0], size[1], patches[0].shape[2]), fill_value=fill_color, dtype=patches[0].dtype)
+#     i = 0
+#     j = 0
+#     while (i + patch_size <= size[0]):
+#         while (j + patch_size <= size[1]):
+#             img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, ...] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, ...]
+#             j += patch_size - 2 * offset
+#             kk += 1
+#         i += patch_size - 2 * offset
+#         j = 0
+
+#     img = img[:orig_size[0], :orig_size[1], ...]
+#     img[-offset:, ...] = fill_color
+#     img[:,-offset:,...] = fill_color
+#     return img
 
 def generate_lists_mineral(input_path: str, output_path: str):
 

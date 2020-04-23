@@ -1,6 +1,6 @@
 import tensorflow as tf
 from tensorflow.keras.callbacks import Callback
-from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask, plot_lrs
+from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask, plot_lrs, visualize_pred_heatmaps
 import numpy as np
 from data_utils import combine_patches, split_to_patches
 from metrics import calc_metrics
@@ -13,10 +13,11 @@ from time import time
 
 class TestResults(Callback):
 
-    def __init__(self, images, masks, model, n_classes, batch_size, patch_size, offset, output_path, all_metrics : list):
+    def __init__(self, images, masks, names, model, n_classes, batch_size, patch_size, offset, output_path, all_metrics : list):
 
         self.images = images
         self.masks = masks
+        self.names = names
         self.model = model
         self.n_classes = n_classes
         self.batch_size = batch_size
@@ -32,10 +33,7 @@ class TestResults(Callback):
 
     def predict_image(self, img):
 
-        height = img.shape[0]
-        width = img.shape[1]
-
-        patches, new_size = split_to_patches(img, self.patch_size, self.offset)
+        patches = split_to_patches(img, self.patch_size, self.offset, overlay = 0.25)
         init_patch_len = len(patches)
 
         while (len(patches) % self.batch_size != 0):
@@ -48,7 +46,8 @@ class TestResults(Callback):
             pred_patches.extend(np.squeeze(np.split(prediction, self.batch_size)))
         
         pred_patches = pred_patches[:init_patch_len]
-        result = combine_patches(pred_patches, self.patch_size, self.offset, (new_size[0], new_size[1]), (height, width))
+        result = combine_patches(pred_patches, self.patch_size, self.offset, overlay=0.25, orig_shape=(img.shape[0], img.shape[1], pred_patches[0].shape[2]))
+        print(f'in predict: {np.min(result)} : {np.max(result)}')
         return result        
 
     
@@ -67,7 +66,7 @@ class TestResults(Callback):
             pred = self.predict_image(image)
             predicted.append(pred)
             metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
-                                        pred[self.offset:-self.offset,self.offset:-self.offset,...], all_metrics, self.n_classes)
+                                        pred, all_metrics, self.n_classes)
             for metric in metrics:
                 print('Metrics for each class:')
                 i = 0
@@ -90,8 +89,10 @@ class TestResults(Callback):
         print(f'prediction completed in {t2-t1} seconds')
 
         print('Processing visualization:')
-        visualize_segmentation_result(self.images, [np.argmax(i, axis=2) for i in self.masks], [np.argmax(i, axis=2) for i in predicted],
-                                      n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+        visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] for i in self.images]),
+                    [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=2) for i in self.masks],
+                    [np.argmax(i, axis=2) for i in predicted], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+        visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
         t3 = time()
         print(f'Visualization completed in {t3-t2} seconds')
 
