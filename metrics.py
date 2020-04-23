@@ -6,6 +6,8 @@ from tensorflow_core import reduce_sum
 
 def calc_metrics(mask_gt: np.ndarray, mask_pred: np.ndarray, metrics: list, num_classes: int):
 
+    assert mask_gt.shape == mask_pred.shape, 'Shapes of gt and pred must be equal in calc_metrics'
+
     metrics_dict = {'iou' : iou_multiclass}
     results = []
 

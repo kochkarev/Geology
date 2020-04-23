@@ -17,7 +17,7 @@ import losses
 def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, show_history=True):
     
     t1 = time()
-    x_train, x_test, y_train, y_test, train_names, _ = get_imgs_masks(path, True, True)
+    x_train, x_test, y_train, y_test, train_names, test_names = get_imgs_masks(path, True, True)
     t2 = time()
     print(f'Images and masks load time: {t2-t1} seconds')
     print(x_train.shape, y_train.shape, x_test.shape, y_test.shape)
@@ -25,7 +25,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
     print('Test data size: {} images and {} masks'.format(x_test.shape[0], y_test.shape[0]))
 
-    aug_factor = 5
+    aug_factor = 8
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     print('Steps per epoch: {}'.format(steps_per_epoch))
 
@@ -70,7 +70,8 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
     callback_test = TestResults(
         images=x_test, 
-        masks=y_test, 
+        masks=y_test,
+        names=test_names, 
         model=model, 
         n_classes=n_classes,
         batch_size=batch_size,
@@ -88,7 +89,6 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     )
 
     csv_logger = CSVLogger('training.log')
-    # steps_per_epoch = 5
     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, augment=True)
     history = model.fit(
         iter(train_generator),
@@ -102,4 +102,4 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
 if __name__ == "__main__":
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=4, epochs=100, path=path, batch_size=16, patch_size=512)
+    train(n_classes=4, n_layers=3, n_filters=16, epochs=100, path=path, batch_size=16, patch_size=512)

@@ -19,22 +19,22 @@ def test_augmentation(output_path: str, patches_num: int):
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
 
     x_train, _, y_train, _, train_names, _ = get_imgs_masks(path, False, True)
-    y_train = to_categorical(y_train, num_classes=4)
+    y_train = to_categorical(y_train, num_classes=4).astype(np.uint8)
 
     print('Initialization generator..')
     t1=time()
-    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=256, batch_size=8, augment=True)
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, augment=True)
     t2=time()
     print(f'took {t2-t1} seconds')
     aug_iter = iter(train_generator)
 
     for i in range(patches_num):
 
+        print(f'\nGenerating patch {i+1}')
         t1= time()
         img, masks = next(aug_iter)
         t2=time()
         print(f'generating took {t2-t1} seconds')
-        print(f'Generating patch {i+1}')
         stat[str(i)] = {i : str(0) for i in classes}   
 
         for j in range(8):
@@ -43,81 +43,90 @@ def test_augmentation(output_path: str, patches_num: int):
             Image.fromarray(
                 colorize_mask(np.dstack((mask,mask,mask)), n_classes=4).astype(np.uint8)
             ).save(os.path.join(output_path, f'mask_{i + 1}_{j + 1}.jpg'))
-            # unique, counts = np.unique(mask, return_counts=True)
-            # aaa = dict(zip(unique, counts))
-            # for class_n in range(4):
-            #     if class_n in aaa:
-            #         stat[str(i)][classes[class_n]] = str(aaa[class_n])     
-
-    # with open(os.path.join(output_path, "stat_aug_" + str(512) + ".json"), 'w') as fp:
-    #     json.dump(stat, fp, indent=4)
 
     s = sum(train_generator.stat[key] for key in train_generator.stat.keys())
     for key in train_generator.stat.keys():
         print(train_generator.stat[key] / s)
-    # print(f'{train_generator.stat[0]/s}\n{train_generator.stat[1]/s}\n{train_generator.stat[2]/s}\n{train_generator.stat[3]/s}')
 
-def _test_balancing(output_path: str, patches_num: int, input_img: str, patch_size: str):
+def test_rotation(output_path: str):
 
     classes = [cl for cl in classes_mask.values()]
-    num_classes = len(classes)
+    path = os.path.join(os.path.dirname(__file__), "input", "dataset")
 
-    mask = np.array(Image.open(os.path.join("input", "dataset", input_img)))[:,:,0]
+    x_train, _, y_train, _, train_names, _ = get_imgs_masks(path, False, True)
+    y_train = to_categorical(y_train, num_classes=4).astype(np.uint8)
 
-    input_img = input_img.replace('_NEW.png', '')
-    stat[input_img] = {i : str(0) for i in classes}
+    print('Initialization generator..')
+    t1=time()
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, augment=True)
+    t2=time()
+    print(f'took {t2-t1} seconds')
+    aug_iter = iter(train_generator)
 
-    p_s = [(np.load((os.path.join("input", "dataset", cl + "__" + input_img + ".npz"))))["arr_0"] for cl in classes]
 
-    for p, cl in zip(p_s, classes):
 
-        aa = np.arange(mask.shape[0] * mask.shape[1])
-        a=np.indices(mask.shape)
+# def _test_balancing(output_path: str, patches_num: int, input_img: str, patch_size: str):
 
-        for i in range(patches_num):
-            n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
-            xx=np.ndarray.flatten(a[0])
-            yy=np.ndarray.flatten(a[1])
+#     classes = [cl for cl in classes_mask.values()]
+#     num_classes = len(classes)
 
-            patch = mask[xx[n]:xx[n] + patch_size, yy[n]:yy[n] + patch_size]
+#     mask = np.array(Image.open(os.path.join("input", "dataset", input_img)))[:,:,0]
 
-            class_n = classes.index(cl)
-            unique, counts = np.unique(patch, return_counts=True)
-            aaa = dict(zip(unique, counts))
-            if class_n in aaa:
-                stat[input_img][cl] = str(aaa[class_n])
-            patch = colorize_mask(np.dstack((patch, patch, patch)), n_classes=num_classes)
+#     input_img = input_img.replace('_NEW.png', '')
+#     stat[input_img] = {i : str(0) for i in classes}
 
-            Image.fromarray(patch.astype(np.uint8)).save(os.path.join(output_path, f"{cl}_{i + 1}_{input_img}.jpg"))
+#     p_s = [(np.load((os.path.join("input", "dataset", cl + "__" + input_img + ".npz"))))["arr_0"] for cl in classes]
 
-def test_balancing(output_path: str, patches_num: int, patch_size: int, generate: bool = False, statistics: bool = False):
+#     for p, cl in zip(p_s, classes):
 
-    with open(os.path.join("input", "dataset.json")) as dataset_json:
-        names = json.load(dataset_json)
+#         aa = np.arange(mask.shape[0] * mask.shape[1])
+#         a=np.indices(mask.shape)
 
-    marked_images = names["BoxA_DS1"]["marked"]
+#         for i in range(patches_num):
+#             n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
+#             xx=np.ndarray.flatten(a[0])
+#             yy=np.ndarray.flatten(a[1])
 
-    if generate:
-        print('Generating heatmaps..')
-        for mask in marked_images:
-            print(f'Creating heatmap for {mask}')
-            create_heatmap(4, patch_size, mask.replace(".jpg", "_NEW.png"), output_path, True)
+#             patch = mask[xx[n]:xx[n] + patch_size, yy[n]:yy[n] + patch_size]
+
+#             class_n = classes.index(cl)
+#             unique, counts = np.unique(patch, return_counts=True)
+#             aaa = dict(zip(unique, counts))
+#             if class_n in aaa:
+#                 stat[input_img][cl] = str(aaa[class_n])
+#             patch = colorize_mask(np.dstack((patch, patch, patch)), n_classes=num_classes)
+
+#             Image.fromarray(patch.astype(np.uint8)).save(os.path.join(output_path, f"{cl}_{i + 1}_{input_img}.jpg"))
+
+# def test_balancing(output_path: str, patches_num: int, patch_size: int, generate: bool = False, statistics: bool = False):
+
+#     with open(os.path.join("input", "dataset.json")) as dataset_json:
+#         names = json.load(dataset_json)
+
+#     marked_images = names["BoxA_DS1"]["marked"]
+
+#     if generate:
+#         print('Generating heatmaps..')
+#         for mask in marked_images:
+#             print(f'Creating heatmap for {mask}')
+#             create_heatmap(4, patch_size, mask.replace(".jpg", "_NEW.png"), output_path, True)
     
-    # for mask in marked_images:
-    #     print(f'Making {patches_num} patches from {mask}')
-    #     _test_balancing(output_path, patches_num, mask.replace(".jpg", "_NEW.png"), patch_size)
+#     # for mask in marked_images:
+#     #     print(f'Making {patches_num} patches from {mask}')
+#     #     _test_balancing(output_path, patches_num, mask.replace(".jpg", "_NEW.png"), patch_size)
 
-    if statistics:
-        with open(os.path.join(output_path, "stat_balanced_" + str(patch_size) + ".json"), 'w') as fp:
-            json.dump(stat, fp, indent=4)
-
-
-
+#     if statistics:
+#         with open(os.path.join(output_path, "stat_balanced_" + str(patch_size) + ".json"), 'w') as fp:
+#             json.dump(stat, fp, indent=4)
 
 if __name__ == "__main__": 
     output_path = os.path.join("test_output", "augment")
     os.makedirs(output_path, exist_ok=True)
     test_augmentation(output_path, 100)
+
+    # output_path = os.path.join("test_output", "rotate")
+    # os.makedirs(output_path, exist_ok=True)
+    # test_rotation(output_path)
 
     # generate_lists_mineral()
 
