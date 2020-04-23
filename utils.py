@@ -65,7 +65,8 @@ def contrast_mask(mask : np.ndarray):
 
 def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
 
-    assert (img.ndim == 2 and pred.ndim == 2), ('Expected (H x W) masks, got img with shape {} and pred with shape {}'.format(img.shape, pred.shape))
+    assert img.ndim == 2 and pred.ndim == 2, 'Expected (H x W) masks, got img with shape {} and pred with shape {}'.format(img.shape, pred.shape)
+    assert img.shape == pred.shape, f'Expected gt and mask with same shape, got {img.shape} and {pred.shape}'
 
     masks = []
     for i in range(num_classes):
@@ -99,7 +100,7 @@ def error_per_class(gt: np.ndarray, pred: np.ndarray, n_classes: int):
         results.append(np.sum(mask) / (mask.shape[0] * mask.shape[1]))
     return results
 
-def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output_path=None, epoch=0):
+def visualize_segmentation_result(images, masks, preds=None, names=None, n_classes=4, output_path=None, epoch=0):
     output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
     os.makedirs(output_path_name, exist_ok=True)
     err_log_name = os.path.join(output_path_name, "err_log.txt")
@@ -134,6 +135,14 @@ def visualize_segmentation_result(images, masks, preds=None, n_classes=4, output
                 os.path.join(output_path_name, f'image_{i + 1}_overlay.jpg')
             )
 
+def visualize_pred_heatmaps(preds, n_classes, output_path, epoch):
+    
+    output_path_name = os.path.join(output_path, f'epoch_{epoch+1}', 'pred_heatmaps')
+    os.makedirs(output_path_name, exist_ok=True)
+
+    for i, pred in enumerate(preds):
+        for cl in range(n_classes):
+            Image.fromarray(to_heat_map(pred[...,cl])).save(os.path.join(output_path_name, f'image_{i + 1}_{classes_mask[cl]}.jpg'))
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
