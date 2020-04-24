@@ -17,7 +17,7 @@ def parse_classes():
 		result[image.split(os.sep)[-1]] = np.unique(img).tolist()
 
 	with open(os.path.join(proj_dir, "input", "classes.json"), 'w') as fp:
-		json.dump(result, fp)
+		json.dump(result, fp, indent=4)
 
 if __name__ == "__main__":
 	parse_classes()

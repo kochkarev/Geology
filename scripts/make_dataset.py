@@ -4,6 +4,9 @@ import fnmatch
 import xlrd
 import cv2 as cv
 import json
+from PIL import Image
+import numpy as np
+from time import time
 
 def parse_dataset(path):
     
@@ -12,7 +15,7 @@ def parse_dataset(path):
     wb = xlrd.open_workbook(path)
     sheet_num = len(wb.sheet_names())
 
-    for sheet_idx in range(1, sheet_num):
+    for sheet_idx in range(1, sheet_num - 2):
 
         sheet = wb.sheet_by_index(sheet_idx)
         sheet.cell_value(0, 0)
@@ -77,7 +80,7 @@ def make_dataset():
     for elem in data1.keys():
         if elem.startswith('S'):
             data["Sh"][0].append(data1[elem][0])
-        elif elem.startswith('P'):
+        elif elem.startswith('Py'):
             data["PyMrc"][0].append(data1[elem][0])
         elif elem.startswith('Gl'):
             data["Gl"][0].append(data1[elem][0])
@@ -92,10 +95,8 @@ def make_dataset():
     def process_mask(mask):
         print('Processing: ' + mask)
         img = cv.imread(mask)
-        for i in range(img.shape[0]):
-            for j in range(img.shape[1]):
-                new_val = data[data_values[img[i, j, 0]]][1]
-                img[i, j, :] = (new_val, new_val, new_val)
+        for value in np.unique(img):
+            img[img == value] = data[data_values[value]][1]
         cv.imwrite(mask.replace(".png","_NEW.png"), img)
 
     dataset_dir = os.path.join(proj_dir, 'input', 'dataset')
@@ -127,6 +128,7 @@ def make_dataset():
                 if file_name.startswith(fname[:fname.find('.')]):    
                     shutil.copy(os.path.join(path, 'masks_machine', file_name), dataset_dir)
                     process_mask(os.path.join(dataset_dir, file_name))
+                    os.remove(os.path.join(dataset_dir, file_name))
             marked_images += 1
 
     print("{} marked images in dataset of {} images".format(marked_images, dataset_size))
