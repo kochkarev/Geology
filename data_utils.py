@@ -87,32 +87,6 @@ def resize_imgs_masks(imgs, masks, num_layers=None, patch_size=None):
 
     return new_imgs, new_masks
 
-# def split_to_patches(img, patch_size, offset, align=None):
-
-#     patches = []
-#     height = img.shape[0]
-#     width = img.shape[1]
-#     new_h = height
-#     new_w = width
-
-#     if (img.shape[0] - patch_size) % (patch_size - 2 * offset) != 0:
-#         new_h = np.ceil((img.shape[0] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
-
-#     if (img.shape[1] - patch_size) % (patch_size - 2 * offset) != 0:
-#         new_w = np.ceil((img.shape[1] - patch_size) / (patch_size - 2 * offset)).astype('int') * (patch_size - 2 * offset) + patch_size
-
-#     img = np.pad(img, ((0, new_h - height), (0, new_w - width), (0, 0)), 'constant')
-
-#     i = 0  
-#     j = 0
-#     while (i + patch_size <= img.shape[0]):
-#         while (j + patch_size <= img.shape[1]):
-#             patches.append(img[i : i + patch_size, j : j + patch_size, :])
-#             j += patch_size - 2 * offset
-#         i += patch_size - 2 * offset
-#         j = 0
-#     return patches, (new_h, new_w)
-
 def split_to_patches(img: np.ndarray, patch_size: int, offset: int, overlay):
 
     assert overlay == 0 or overlay == 0.5 or overlay == 0.25, 'Overlay should be 100, 50 or 25%'
@@ -168,28 +142,6 @@ def combine_patches(patches, patch_size, offset, overlay, orig_shape):
     result /= weights
     result = result[:orig_shape[0], :orig_shape[1], ...] # Crop empty border on right and bottom
     return result[offset : -offset, offset : -offset, ...] # Crop convolution offset
-
-    
-# def combine_patches(patches, patch_size, offset, size, orig_size, fill_color = (0,0,0,0)):
-
-#     kk = 0
-#     if patches[0].shape[-1] == 3:
-#         fill_color = (0,0,0)
-#     img = np.full(shape=(size[0], size[1], patches[0].shape[2]), fill_value=fill_color, dtype=patches[0].dtype)
-#     i = 0
-#     j = 0
-#     while (i + patch_size <= size[0]):
-#         while (j + patch_size <= size[1]):
-#             img[i+offset : i+patch_size-offset, j+offset : j+patch_size-offset, ...] = patches[kk][offset : patch_size-offset, offset : patch_size-offset, ...]
-#             j += patch_size - 2 * offset
-#             kk += 1
-#         i += patch_size - 2 * offset
-#         j = 0
-
-#     img = img[:orig_size[0], :orig_size[1], ...]
-#     img[-offset:, ...] = fill_color
-#     img[:,-offset:,...] = fill_color
-#     return img
 
 def generate_lists_mineral(input_path: str, output_path: str):
 

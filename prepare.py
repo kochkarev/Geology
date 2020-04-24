@@ -1,20 +1,28 @@
 import os
 from utils import create_heatmaps
 from data_utils import generate_lists_mineral
+from scripts.make_dataset import make_dataset
+from config import train_params
 
 if __name__ == "__main__":
 
+    # Creating dataset
+    input_path=train_params["dataset_path"]
+    if not os.path.exists(input_path):
+        make_dataset()
+    else:
+        print(f'Skipping dataset generation. To regenerate delete directory {input_path}')
+
     # Generating heatmaps
-    output_path=os.path.join('input', 'heatmaps')
-    input_path=os.path.join('input', 'dataset')
-    vis_path = os.path.join('test_output', 'heatmaps')
+    output_path = train_params["heatmaps_input"]
+    vis_path = train_params["heatmaps_output"]
 
     if not os.path.exists(output_path):
         os.mkdir(output_path)
         os.makedirs(vis_path, exist_ok=True)
         create_heatmaps(
-            num_classes=4,
-            patch_size=512,
+            num_classes=train_params["n_classes"],
+            patch_size=train_params["patch_size"],
             input_path=input_path,
             output_path=output_path,
             vis_path=vis_path,
@@ -24,10 +32,10 @@ if __name__ == "__main__":
         print(f'Skipping heatmaps generation. To regenerate delete directory {output_path}')
 
     # Generating weighted list of images
-    output_path = os.path.join('input', 'ores.json')
-    if not os.path.exists(output_path):
+    output_json = train_params["ores_json"]
+    if not os.path.exists(output_json):
         print('Generating weighted list for all ores')
-        generate_lists_mineral(input_path=input_path, output_path=output_path)
-        print(f'Weighted list saved in {os.path.join(input_path, "ores.json")}')
+        generate_lists_mineral(input_path=input_path, output_path=output_json)
+        print(f'Weighted list saved in {output_json}')
     else:
-        print(f'Skipping generation of weighted list for ores. To regenerate delete file {output_path}')
+        print(f'Skipping generation of weighted list for ores. To regenerate delete file {output_json}')

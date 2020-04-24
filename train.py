@@ -13,8 +13,10 @@ from generators import PatchGenerator
 from time import time
 import functools
 import losses
+import shutil
+from config import classes_mask, train_params
 
-def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, show_history=True):
+def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, overlay, output_path, show_history=True):
     
     t1 = time()
     x_train, x_test, y_train, y_test, train_names, test_names = get_imgs_masks(path, True, True)
@@ -76,8 +78,9 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         n_classes=n_classes,
         batch_size=batch_size,
         patch_size=patch_size,
+        overlay=overlay,
         offset=2 * n_layers,
-        output_path='output',
+        output_path=output_path,
         all_metrics=['iou']
     )
 
@@ -87,7 +90,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         patience=7,
         restore_best_weights=True
     )
-
+    steps_per_epoch = 5
     csv_logger = CSVLogger('training.log')
     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, augment=True)
     history = model.fit(
@@ -98,8 +101,14 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     )
 
     if show_history:
-        plot_segm_history(history, 'output')
+        plot_segm_history(history, output_path)
 
 if __name__ == "__main__":
-    path = os.path.join(os.path.dirname(__file__), "input", "dataset")
-    train(n_classes=4, n_layers=3, n_filters=16, epochs=100, path=path, batch_size=16, patch_size=512)
+    if os.path.exists(train_params["output_path"]):
+        shutil.rmtree(train_params["output_path"])
+
+    train(n_classes=len(classes_mask.keys()), n_layers=train_params["n_layers"], 
+            n_filters=train_params["n_filters"], epochs=train_params["epochs"], 
+            path=train_params["dataset_path"], batch_size=train_params["batch_size"],
+            patch_size=train_params["patch_size"], overlay=train_params["overlay"],
+            output_path=train_params["output_path"])

@@ -95,14 +95,12 @@ def error_per_class(gt: np.ndarray, pred: np.ndarray, n_classes: int):
     gt, pred = to_categorical(gt, n_classes), to_categorical(pred, n_classes)
     results = []
     for i in range(n_classes):
-        # mask = np.where(gt[...,i] == pred[...,i], 1, 0)
         mask = np.where(gt[...,i] == 1, 1, 0) * np.where(pred[...,i] == 1, 1, 0)
-        results.append(np.sum(mask) / (mask.shape[0] * mask.shape[1]))
+        results.append(np.sum(mask) / (np.sum(gt[...,])))
     return results
 
 def visualize_segmentation_result(images, masks, preds=None, names=None, n_classes=4, output_path=None, epoch=0):
     output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
-    os.makedirs(output_path_name, exist_ok=True)
     err_log_name = os.path.join(output_path_name, "err_log.txt")
     if os.path.exists(err_log_name):
         os.remove(err_log_name)
@@ -222,11 +220,11 @@ def plot_per_class_history(metrics_values: dict, output_path: str):
         plt.plot(x, y, linewidth=3, color=classes_colors[classes_mask[class_num]])
         i +=1
 
-    plt.suptitle('iou metric per class over epochs', fontsize=20)
+    plt.suptitle('metric per class over epochs', fontsize=20)
     plt.ylabel('metric', fontsize=20)
     plt.xlabel('epoch', fontsize=20)
     plt.legend([classes_mask[j] for j in range(i)], loc='center right', fontsize=15)
-    fig.savefig(os.path.join(output_path, 'per_class_iou.jpg'))
+    fig.savefig(os.path.join(output_path, 'per_class_metric.jpg'))
 
 def plot_lrs(lrs: list, output_path: str):
 

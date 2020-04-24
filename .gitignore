@@ -8,3 +8,4 @@ test_output
 *.h5
 *.ipynb
 *.log
+train_params.json
