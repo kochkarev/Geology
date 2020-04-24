@@ -2,7 +2,7 @@ import os
 from utils import create_heatmaps
 from data_utils import generate_lists_mineral
 from scripts.make_dataset import make_dataset
-from config import train_params
+from config import train_params, classes_mask
 
 if __name__ == "__main__":
 
@@ -21,7 +21,7 @@ if __name__ == "__main__":
         os.mkdir(output_path)
         os.makedirs(vis_path, exist_ok=True)
         create_heatmaps(
-            num_classes=train_params["n_classes"],
+            num_classes=len(classes_mask.keys()),
             patch_size=train_params["patch_size"],
             input_path=input_path,
             output_path=output_path,
