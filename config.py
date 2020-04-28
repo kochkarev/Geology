@@ -17,10 +17,18 @@ classes_colors = {
     "Br" : "#4B0082"
 }
 
+classes_weights = {
+    0: 0.7956840623086494,
+    1: 0.768350642975015,
+    2: 0.909053461587638,
+    3: 2.9266693320289843
+}
+
 train_params = {
     "n_layers" : 3,
     "n_filters" : 16,
     "epochs" : 100,
+    "aug_factor" : 5,
     "dataset_path" : os.path.join('input', 'dataset'),
     "batch_size" : 32,
     "patch_size" : 256,
@@ -28,5 +36,6 @@ train_params = {
     "output_path" : "output",
     "heatmaps_input" : os.path.join('input', 'heatmaps'),
     "heatmaps_output" : os.path.join('test_output', "heatmaps"),
-    "ores_json" : os.path.join('input', 'ores.json')
+    "ores_json" : os.path.join('input', 'ores.json'),
+    "full_augment" : False
 }

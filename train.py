@@ -14,10 +14,12 @@ from time import time
 import functools
 import losses
 import shutil
-from config import classes_mask, train_params
+from config import classes_mask, train_params, classes_weights
+from sklearn.utils import class_weight
 
 def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, overlay, output_path, show_history=True):
     
+    print('Loading images and masks..')
     t1 = time()
     x_train, x_test, y_train, y_test, train_names, test_names = get_imgs_masks(path, True, True)
     t2 = time()
@@ -27,9 +29,17 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
     print('Test data size: {} images and {} masks'.format(x_test.shape[0], y_test.shape[0]))
 
-    aug_factor = 8
+    aug_factor = train_params["aug_factor"]
     steps_per_epoch = np.ceil((x_train.shape[0] * x_train.shape[1] * x_train.shape[2] * aug_factor) / (batch_size * patch_size * patch_size)).astype('int')
     print('Steps per epoch: {}'.format(steps_per_epoch))
+
+    # print('Computing weights..')
+    # t1 = time()
+    # class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train), y_train.flatten())
+    # t2 = time()
+    # class_weights = dict(enumerate(class_weights))
+    # print(f'Weights computed in {t2 - t1} seconds')
+    print(f'Weights: {classes_weights}')
 
     y_train = to_categorical(y_train, num_classes=n_classes).astype(np.uint8)
     y_test = to_categorical(y_test, num_classes=n_classes).astype(np.uint8)
@@ -61,12 +71,13 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         verbose=1
     )
 
+    # custom_loss = functools.partial(losses.weighted_dice_loss, weights=[classes_weights[i] for i in classes_weights.keys()])
     custom_loss = functools.partial(losses.dice_loss)
     custom_loss.__name__ = 'custom_loss'
 
     model.compile(
         optimizer=Adam(), 
-        loss = 'categorical_crossentropy',
+        loss = custom_loss,
         metrics=[iou]
     )
 
@@ -92,13 +103,16 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     )
     steps_per_epoch = 5
     csv_logger = CSVLogger('training.log')
-    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, augment=True)
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, full_augment=train_params["full_augment"])
     history = model.fit(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
         epochs=epochs,
-        callbacks=[callback_checkpoint, callback_test, csv_logger, reduce_lr, early_stop],
+        callbacks=[callback_checkpoint, callback_test, csv_logger, reduce_lr, early_stop]
     )
+
+    for key in history.history:
+        print(key)
 
     if show_history:
         plot_segm_history(history, output_path)

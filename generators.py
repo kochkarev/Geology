@@ -13,14 +13,14 @@ from tensorflow.keras.utils import to_categorical
 
 class PatchGenerator:
 
-    def __init__(self, images: np.ndarray, masks: np.ndarray, names: str, patch_size: int, batch_size: int, augment: bool = True):
+    def __init__(self, images: np.ndarray, masks: np.ndarray, names: str, patch_size: int, batch_size: int, full_augment: bool = False):
 
         self.images = images
         self.masks = masks
         self.names = names
         self.patch_size = patch_size
         self.batch_size = batch_size
-        self.augment = augment
+        self.full_augment = full_augment
         self.stat = {classes_mask[i] : 0 for i in classes_mask}
         self.load_heatmaps()
 
@@ -60,41 +60,58 @@ class PatchGenerator:
 
             for batch_idx in batch_files:
 
-                etha_max = 2
-                etha = np.random.uniform(1 / etha_max, etha_max)
-                angle = np.random.random_integers(0, 360)
-                new_size = int(np.ceil(self.patch_size * sqrt(2) * etha))
+                if self.full_augment:
+                    etha_max = 2
+                    etha = np.random.uniform(1 / etha_max, etha_max)
+                    angle = np.random.random_integers(0, 360)
+                    new_size = int(np.ceil(self.patch_size * sqrt(2) * etha))
 
                 p_s = self.heatmaps[batch_idx]
                 
                 p = p_s[classes[cur_class]]
-                while (True):
-                    n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
-                    if (_xx[n] + new_size < self.masks[batch_idx].shape[0] and _yy[n] + new_size < self.masks[batch_idx].shape[1]):
-                        break
+                if self.full_augment:
+                    while (True):
+                        n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
+                        if (_xx[n] + new_size < self.masks[batch_idx].shape[0] and _yy[n] + new_size < self.masks[batch_idx].shape[1]):
+                            break
+                else:
+                    while (True):
+                        n = np.random.choice(a=aa, p=np.ndarray.flatten(p))
+                        if (_xx[n] + self.patch_size < self.masks[batch_idx].shape[0] and _yy[n] + self.patch_size < self.masks[batch_idx].shape[1]):
+                            break
 
                 # Choosing patch
-                yy = self.masks[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
-                xx = self.images[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]                
+                if self.full_augment:
+                    yy = self.masks[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                    xx = self.images[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                else:
+                    yy = self.masks[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
+                    xx = self.images[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
                 
-                # Rotate
-                xx = Image.fromarray((255*xx).astype(np.uint8)).rotate(angle=angle, resample=Image.BICUBIC)
-                yy = Image.fromarray((np.argmax(yy, axis=2)).astype(np.uint8)).rotate(angle=angle, resample=Image.NEAREST)
-                
-                # Rescale
-                new_size1 = int(np.ceil(self.patch_size * etha))
-                ii = abs(new_size - new_size1) // 2
-                xx = xx.crop((ii, ii, ii + new_size1, ii + new_size1))
-                yy = yy.crop((ii, ii, ii + new_size1, ii + new_size1))
+                xx = Image.fromarray((255*xx).astype(np.uint8))
+                yy = Image.fromarray((np.argmax(yy, axis=2)).astype(np.uint8))
 
-                xx = xx.resize(size=(self.patch_size, self.patch_size), resample=Image.BICUBIC)
-                yy = yy.resize(size=(self.patch_size, self.patch_size), resample=Image.NEAREST)
+                if self.full_augment:
+                    # Rotate
+                    xx = xx.rotate(angle=angle, resample=Image.BICUBIC)
+                    yy = yy.rotate(angle=angle, resample=Image.NEAREST)
+                    
+                    # Rescale
+                    new_size1 = int(np.ceil(self.patch_size * etha))
+                    ii = abs(new_size - new_size1) // 2
+                    xx = xx.crop((ii, ii, ii + new_size1, ii + new_size1))
+                    yy = yy.crop((ii, ii, ii + new_size1, ii + new_size1))
 
+                    xx = xx.resize(size=(self.patch_size, self.patch_size), resample=Image.BICUBIC)
+                    yy = yy.resize(size=(self.patch_size, self.patch_size), resample=Image.NEAREST)
+
+                # Flip 
                 if randint(0, 1) == 0:
                     xx, yy = xx.transpose(Image.FLIP_TOP_BOTTOM), yy.transpose(Image.FLIP_TOP_BOTTOM)
                 else:
                     xx, yy = xx.transpose(Image.FLIP_LEFT_RIGHT), yy.transpose(Image.FLIP_LEFT_RIGHT)
 
+                # Rotate 90
                 rotate_flg = randint(0, 3)
                 if rotate_flg == 0:
                     xx, yy = xx.transpose(Image.ROTATE_90), yy.transpose(Image.ROTATE_90)
