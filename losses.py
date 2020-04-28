@@ -1,4 +1,4 @@
-from tensorflow_core.python.keras.losses import binary_crossentropy
+from tensorflow_core.python.keras.losses import binary_crossentropy, categorical_crossentropy
 from metrics import dice, weighted_dice
 
 def combined_loss(alpha):
@@ -14,6 +14,12 @@ def weighted_dice_loss(y_true, y_pred, weights):
 
 def bce_loss(y_true, y_pred):
     return binary_crossentropy(y_true, y_pred)
+
+def cce_loss(y_true, y_pred):
+    return categorical_crossentropy(y_true, y_pred)
+
+def cce_dice_loss(y_true, y_pred, alpha=1.0, beta=1.0):
+    return categorical_crossentropy(y_true, y_pred) * alpha + dice_loss(y_true, y_pred) * beta
 
 def bce_dice_loss(y_true, y_pred, alpha=1.0, beta=1.0):
     return binary_crossentropy(y_true, y_pred) * alpha + dice_loss(y_true, y_pred) * beta

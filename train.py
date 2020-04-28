@@ -72,7 +72,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     )
 
     # custom_loss = functools.partial(losses.weighted_dice_loss, weights=[classes_weights[i] for i in classes_weights.keys()])
-    custom_loss = functools.partial(losses.dice_loss)
+    custom_loss = functools.partial(losses.cce_dice_loss)
     custom_loss.__name__ = 'custom_loss'
 
     model.compile(
