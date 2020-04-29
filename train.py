@@ -122,7 +122,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, full_augment=train_params["full_augment"])
 
-    steps_per_epoch = 5
+    # steps_per_epoch = 5
     history = model.fit(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
