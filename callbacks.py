@@ -12,11 +12,10 @@ import tensorflow.keras.backend as K
 from time import time
 from config import classes_mask, train_params
 from datetime import datetime
+import pickle
 
 class TestResults(Callback):
-
     def __init__(self, images, masks, names, model, n_classes, batch_size, patch_size, overlay, offset, output_path, all_metrics : list):
-
         self.images = images
         self.masks = masks
         self.names = names
@@ -35,7 +34,6 @@ class TestResults(Callback):
         self.lrs = []
 
     def predict_image(self, img):
-
         patches = split_to_patches(img, self.patch_size, self.offset, overlay = 0.25)
         init_patch_len = len(patches)
 
@@ -54,7 +52,6 @@ class TestResults(Callback):
         return result
     
     def on_epoch_end(self, epoch, logs=None):
-
         output_path_name = os.path.join(self.output_path, f'epoch_{epoch+1}')
         os.makedirs(output_path_name, exist_ok=True)
         metrics_log_name = os.path.join(output_path_name, "metrics.txt")
@@ -119,7 +116,6 @@ class TestResults(Callback):
         print(f'Visualization completed in {t3-t2} seconds')
 
     def on_train_begin(self, logs=None):
-
         params_name = os.path.join(self.output_path, "train_params.txt")
         if os.path.exists(params_name):
             os.remove(params_name)

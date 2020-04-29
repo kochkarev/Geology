@@ -1,6 +1,7 @@
 input
 output
 test_output
+models
 .ipynb_checkpoints
 *__pycache__*
 .vscode
