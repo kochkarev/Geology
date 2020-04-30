@@ -58,25 +58,42 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     custom_loss = functools.partial(losses.cce_dice_loss)
     custom_loss.__name__ = 'weighted_dice_loss'
 
+    model = custom_unet(
+        input_shape,
+        n_classes=n_classes,
+        filters=n_filters,
+        use_batch_norm=True,
+        n_layers=n_layers,
+        output_activation='softmax'
+    )
+
+    model.compile(
+        optimizer=Adam(), 
+        loss = custom_loss,
+        metrics=[iou]
+    )
+
     if model_name:
         model = load_model(os.path.join(train_params["model_path"], model_name), custom_objects={'iou' : iou, 'weighted_dice_loss' : custom_loss})
         initial_epoch = int(model_name.split('_')[1])
-        print(f'Model {model_name} loaded. Continue training from epoch {initial_epoch}')
-    else:
-        model = custom_unet(
-            input_shape,
-            n_classes=n_classes,
-            filters=n_filters,
-            use_batch_norm=True,
-            n_layers=n_layers,
-            output_activation='softmax'
-        )
+        print(f'Model {model_name} loaded. Continue training from epoch {initial_epoch + 1}')
 
-        model.compile(
-            optimizer=Adam(), 
-            loss = custom_loss,
-            metrics=[iou]
-        )
+    # if model_name:
+    #     model.load_weights(os.path.join(train_params["model_path"], model_name))
+    #     model._make_train_function()
+    #     with open(os.path.join(train_params["model_path"], model_name.replace('model', 'optimizer').replace('hdf5', 'pkl')), 'rb') as f:
+    #         weight_values = pickle.load(f)
+    #     model.optimizer.set_weights(weight_values)
+    #     initial_epoch = int(model_name.split('_')[1])
+    #     print(f'Model {model_name} loaded. Continue training from epoch {initial_epoch + 1}')
+
+
+    # callback_checkpoint = AdvancedCheckpoint(
+    #     model=model,
+    #     save_best_only=True,
+    #     verbose=True,
+    #     output_path=train_params["model_path"]
+    # )
 
     # Setting up callbacks
     ######################################
@@ -97,7 +114,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     early_stop = EarlyStopping(
         monitor='loss',
         min_delta=0.001,
-        patience=7,
+        patience=6,
         restore_best_weights=True
     )
 
@@ -112,7 +129,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     reduce_lr = ReduceLROnPlateau(
         monitor='loss',
         factor=0.2,
-        patience=5,
+        patience=4,
         min_lr=0.00001,
         verbose=1
     )
@@ -138,8 +155,9 @@ if __name__ == "__main__":
     parser.add_argument('-m', '--model', action='store')
     args = parser.parse_args()
 
-    if os.path.exists(train_params["output_path"]):
-        shutil.rmtree(train_params["output_path"])
+    if args.model == None:
+        if os.path.exists(train_params["output_path"]):
+            shutil.rmtree(train_params["output_path"])
     os.makedirs(train_params["model_path"], exist_ok=True)
 
     train(n_classes=len(classes_mask.keys()), n_layers=train_params["n_layers"], 
