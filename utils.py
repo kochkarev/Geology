@@ -96,7 +96,7 @@ def error_per_class(gt: np.ndarray, pred: np.ndarray, n_classes: int):
     results = []
     for i in range(n_classes):
         mask = np.where(gt[...,i] == 1, 1, 0) * np.where(pred[...,i] == 1, 1, 0)
-        results.append(np.sum(mask) / (np.sum(gt[...,])))
+        results.append(np.sum(mask) / (np.sum(gt[...,i])))
     return results
 
 def visualize_segmentation_result(images, masks, preds=None, names=None, n_classes=4, output_path=None, epoch=0):
@@ -266,7 +266,7 @@ def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path
         p = p - min_p
         p = p / (max_p - min_p)
         p = p ** 4
-        p = np.where(p > 0.5*np.max(p), p, 0)
+        # p = np.where(p > 0.5*np.max(p), p, 0)
         p = np.pad(p, [(0, patch_size), (0, patch_size)], mode='constant')
         if visualize:
             Image.fromarray(to_heat_map(p)).save(os.path.join(vis_path, f"HeatMap_{cl}_{input_img}.jpg"))
