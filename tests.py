@@ -13,7 +13,7 @@ from time import time
 
 stat = dict()
 
-def test_augmentation(output_path: str, patches_num: int):
+def test_generator(output_path: str, patches_num: int):
 
     classes = [cl for cl in classes_mask.values()]
     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
@@ -23,7 +23,7 @@ def test_augmentation(output_path: str, patches_num: int):
 
     print('Initialization generator..')
     t1=time()
-    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, augment=True)
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, full_augment=False, balanced=True)
     t2=time()
     print(f'took {t2-t1} seconds')
     aug_iter = iter(train_generator)
@@ -38,30 +38,30 @@ def test_augmentation(output_path: str, patches_num: int):
         stat[str(i)] = {i : str(0) for i in classes}   
 
         for j in range(8):
-            Image.fromarray((img[j] * 255).astype(np.uint8)).save(os.path.join(output_path, f'img_{i + 1}_{j+1}.jpg'))
+            # Image.fromarray((img[j] * 255).astype(np.uint8)).save(os.path.join(output_path, f'img_{i + 1}_{j+1}.jpg'))
             mask = np.argmax(masks[j], axis=2)
-            Image.fromarray(
-                colorize_mask(np.dstack((mask,mask,mask)), n_classes=4).astype(np.uint8)
-            ).save(os.path.join(output_path, f'mask_{i + 1}_{j + 1}.jpg'))
+            # Image.fromarray(
+            #     colorize_mask(np.dstack((mask,mask,mask)), n_classes=4).astype(np.uint8)
+            # ).save(os.path.join(output_path, f'mask_{i + 1}_{j + 1}.jpg'))
 
     s = sum(train_generator.stat[key] for key in train_generator.stat.keys())
     for key in train_generator.stat.keys():
         print(train_generator.stat[key] / s)
 
-def test_rotation(output_path: str):
+# def test_rotation(output_path: str):
 
-    classes = [cl for cl in classes_mask.values()]
-    path = os.path.join(os.path.dirname(__file__), "input", "dataset")
+#     classes = [cl for cl in classes_mask.values()]
+#     path = os.path.join(os.path.dirname(__file__), "input", "dataset")
 
-    x_train, _, y_train, _, train_names, _ = get_imgs_masks(path, False, True)
-    y_train = to_categorical(y_train, num_classes=4).astype(np.uint8)
+#     x_train, _, y_train, _, train_names, _ = get_imgs_masks(path, False, True)
+#     y_train = to_categorical(y_train, num_classes=4).astype(np.uint8)
 
-    print('Initialization generator..')
-    t1=time()
-    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, augment=True)
-    t2=time()
-    print(f'took {t2-t1} seconds')
-    aug_iter = iter(train_generator)
+#     print('Initialization generator..')
+#     t1=time()
+#     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=512, batch_size=8, augment=True)
+#     t2=time()
+#     print(f'took {t2-t1} seconds')
+#     aug_iter = iter(train_generator)
 
 
 
@@ -122,7 +122,7 @@ def test_rotation(output_path: str):
 if __name__ == "__main__": 
     output_path = os.path.join("test_output", "augment")
     os.makedirs(output_path, exist_ok=True)
-    test_augmentation(output_path, 100)
+    # test_augmentation(output_path, 100)
 
     # output_path = os.path.join("test_output", "rotate")
     # os.makedirs(output_path, exist_ok=True)

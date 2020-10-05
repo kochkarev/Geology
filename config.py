@@ -27,7 +27,7 @@ classes_weights = {
 train_params = {
     "n_layers" : 4,
     "n_filters" : 16,
-    "epochs" : 100,
+    "epochs" : 3,
     "aug_factor" : 7,
     "dataset_path" : os.path.join('input', 'dataset'),
     "batch_size" : 32,
