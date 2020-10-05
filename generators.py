@@ -13,7 +13,7 @@ from tensorflow.keras.utils import to_categorical
 
 class PatchGenerator:
 
-    def __init__(self, images: np.ndarray, masks: np.ndarray, names: str, patch_size: int, batch_size: int, full_augment: bool = False):
+    def __init__(self, images: np.ndarray, masks: np.ndarray, names: str, patch_size: int, batch_size: int, full_augment: bool = False, balanced: bool = False):
 
         self.images = images
         self.masks = masks
@@ -22,7 +22,9 @@ class PatchGenerator:
         self.batch_size = batch_size
         self.full_augment = full_augment
         self.stat = {classes_mask[i] : 0 for i in classes_mask}
-        self.load_heatmaps()
+        self.balanced = balanced
+        if balanced:
+            self.load_heatmaps()
 
     def load_heatmaps(self):
         print('Loading heatmaps..')
@@ -50,7 +52,6 @@ class PatchGenerator:
         while(True):
             
             cur_class = min(self.stat.keys(), key=(lambda k: self.stat[k]))
-            # print(cur_class)
             pp = np.fromiter(ores[cur_class].values(), dtype=np.float64)
             pp /= np.sum(pp)
             batch_files = np.random.choice(a=self.images.shape[0], size=self.batch_size, p=pp)
@@ -81,13 +82,23 @@ class PatchGenerator:
                             break
 
                 # Choosing patch
-                if self.full_augment:
-                    yy = self.masks[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
-                    xx = self.images[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                if self.balanced:
+                    if self.full_augment:
+                        yy = self.masks[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                        xx = self.images[batch_idx, _xx[n] : _xx[n] + new_size, _yy[n] : _yy[n] + new_size, :]
+                    else:
+                        yy = self.masks[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
+                        xx = self.images[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
                 else:
-                    yy = self.masks[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
-                    xx = self.images[batch_idx, _xx[n] : _xx[n] + self.patch_size, _yy[n] : _yy[n] + self.patch_size, :]
-                
+                    i = np.random.choice(a=self.images.shape[1]-new_size-1)
+                    j = np.random.choice(a=self.images.shape[2]-new_size-1)
+                    if self.full_augment:
+                        xx = self.images[batch_idx, i : i+new_size, j : j+new_size, :]
+                        yy = self.masks[batch_idx, i : i+new_size, j : j+new_size, :]
+                    else:
+                        xx = self.images[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
+                        yy = self.masks[batch_idx, i : i+self.patch_size, j : j+self.patch_size, :]
+                        
                 xx = Image.fromarray((255*xx).astype(np.uint8))
                 yy = Image.fromarray((np.argmax(yy, axis=2)).astype(np.uint8))
 
