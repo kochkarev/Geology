@@ -129,7 +129,8 @@ def combine_patches(patches, patch_size, offset, overlay, orig_shape):
     if (orig_shape[1] - patch_size) % shift != 0:
         new_w = int(np.ceil((orig_shape[1] - patch_size) / shift)) * shift + patch_size
 
-    result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=patches[0].dtype)
+    # result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=patches[0].dtype)
+    result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=np.float32)
     weights = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=np.uint8)
     i, j, k = 0, 0, 0
     while (i + patch_size <= new_h):

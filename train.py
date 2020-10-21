@@ -55,7 +55,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     initial_epoch = 0
 
     custom_loss = functools.partial(losses.weighted_dice_loss, weights=weights)
-    custom_loss = functools.partial(losses.cce_dice_loss)
+    # custom_loss = functools.partial(losses.cce_dice_loss)
     custom_loss.__name__ = 'weighted_dice_loss'
 
     model = custom_unet(

@@ -1,6 +1,6 @@
 input
 output*
-test_output
+test*
 models
 .ipynb_checkpoints
 *__pycache__*

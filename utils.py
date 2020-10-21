@@ -151,10 +151,10 @@ def visualize_prediction_result(image, predicted, image_name, figsize=4, output_
 
     axes[0].imshow(image)
     axes[0].set_axis_off()
-    axes[1].imshow(colorize_mask(predicted, n_classes=4))
+    axes[1].imshow(colorize_mask(np.dstack((predicted, predicted, predicted)), n_classes=4))
     axes[1].set_axis_off()
     axes[2].imshow(image)
-    axes[2].imshow(colorize_mask(predicted, n_classes=4), alpha=0.5)
+    axes[2].imshow(colorize_mask(np.dstack((predicted, predicted, predicted)), n_classes=4), alpha=0.5)
     axes[2].set_axis_off()
 
     if (output_path != None):
