@@ -27,8 +27,8 @@ classes_weights = {
 train_params = {
     "n_layers" : 4,
     "n_filters" : 16,
-    "epochs" : 3,
-    "aug_factor" : 7,
+    "epochs" : 100,
+    "aug_factor" : 5,
     "dataset_path" : os.path.join('input', 'dataset'),
     "batch_size" : 32,
     "patch_size" : 256,
@@ -37,6 +37,6 @@ train_params = {
     "heatmaps_input" : os.path.join('input', 'heatmaps'),
     "heatmaps_output" : os.path.join('test_output', "heatmaps"),
     "ores_json" : os.path.join('input', 'ores.json'),
-    "full_augment" : True,
+    "full_augment" : False,
     "model_path" : os.path.join("models")
 }

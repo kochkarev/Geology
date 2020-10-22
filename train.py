@@ -8,7 +8,7 @@ from metrics import iou, iou_multiclass
 from utils import plot_segm_history
 import os
 import numpy as np
-from callbacks import TestResults
+from callbacks import TestResults, AdvancedCheckpoint
 from generators import PatchGenerator
 from time import time
 import functools
@@ -70,6 +70,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     model.compile(
         optimizer=Adam(), 
         loss = custom_loss,
+        # loss = 'categorical_crossentropy',
         metrics=[iou]
     )
 
@@ -88,12 +89,12 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     #     print(f'Model {model_name} loaded. Continue training from epoch {initial_epoch + 1}')
 
 
-    # callback_checkpoint = AdvancedCheckpoint(
-    #     model=model,
-    #     save_best_only=True,
-    #     verbose=True,
-    #     output_path=train_params["model_path"]
-    # )
+    callback_checkpoint = AdvancedCheckpoint(
+        model=model,
+        save_best_only=True,
+        verbose=True,
+        output_path=train_params["model_path"]
+    )
 
     # Setting up callbacks
     ######################################
@@ -118,13 +119,13 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         restore_best_weights=True
     )
 
-    callback_checkpoint = ModelCheckpoint(
-        filepath=os.path.join(train_params["model_path"], 'model_{epoch:02d}_{loss:.2f}.hdf5'),
-        verbose=1, 
-        monitor='loss', 
-        save_best_only=True,
-        save_weights_only=False
-    )
+    # callback_checkpoint = ModelCheckpoint(
+    #     filepath=os.path.join(train_params["model_path"], 'model_{epoch:02d}_{loss:.2f}.hdf5'),
+    #     verbose=1, 
+    #     monitor='loss', 
+    #     save_best_only=True,
+    #     save_weights_only=False
+    # )
 
     reduce_lr = ReduceLROnPlateau(
         monitor='loss',
@@ -137,9 +138,9 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     csv_logger = CSVLogger('training.log')
     ######################################
 
-    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, full_augment=train_params["full_augment"])
+    train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, full_augment=train_params["full_augment"], balanced=True)
 
-    # steps_per_epoch = 5
+    # steps_per_epoch = 50
     history = model.fit(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,

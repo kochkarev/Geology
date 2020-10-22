@@ -13,6 +13,8 @@ from time import time
 from config import classes_mask, train_params
 from datetime import datetime
 import pickle
+from tensorflow.keras.models import load_model
+from metrics import iou
 
 class TestResults(Callback):
     def __init__(self, images, masks, names, model, n_classes, batch_size, patch_size, overlay, offset, output_path, all_metrics : list):
@@ -48,7 +50,7 @@ class TestResults(Callback):
         
         pred_patches = pred_patches[:init_patch_len]
         result = combine_patches(pred_patches, self.patch_size, self.offset, overlay=0.25, orig_shape=(img.shape[0], img.shape[1], pred_patches[0].shape[2]))
-        print(f'in predict: {np.min(result)} : {np.max(result)}')
+        # print(f'in predict: {np.min(result)} : {np.max(result)}')
         return result
     
     def on_epoch_end(self, epoch, logs=None):
@@ -73,6 +75,7 @@ class TestResults(Callback):
             metrics_log.write('\n' + s + '\n')
             pred = self.predict_image(image)
             predicted.append(pred)
+
             metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
                                         pred, all_metrics, self.n_classes)
             for metric in metrics:
@@ -108,6 +111,7 @@ class TestResults(Callback):
         visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] for i in self.images]),
                     [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=2) for i in self.masks],
                     [np.argmax(i, axis=2) for i in predicted], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+        
         visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
         plot_metrics_history(self.metrics_results, self.output_path)
         plot_per_class_history(self.metrics_per_cls_res, self.output_path)
@@ -138,13 +142,14 @@ class AdvancedCheckpoint(Callback):
         cur_loss = float(logs['loss'])
         if (not self.save_best_only) or (self.save_best_only and cur_loss < self.best_loss_value):
             self.best_loss_value = cur_loss
-            model_name = f'model_{epoch+1:02d}_{cur_loss:.2f}.hdf5'
-            self.model.save_weights(os.path.join(self.output_path, model_name))
+            model_name = f'model_{epoch+1:02d}_{cur_loss:.3f}.hdf5'
+            # self.model.save_weights(os.path.join(self.output_path, model_name))
+            self.model.save(os.path.join(self.output_path, model_name))
             if self.verbose:
                 print(f'Model weights saved in {os.path.join(self.output_path, model_name)}')
             symbolic_weights = getattr(self.model.optimizer, 'weights')
             weights_values = K.batch_get_value(symbolic_weights)
-            weights_name = f'optimizer_{epoch+1:02d}_{cur_loss:.2f}.pkl'
+            weights_name = f'optimizer_{epoch+1:02d}_{cur_loss:.3f}.pkl'
             with open(os.path.join(self.output_path, weights_name), 'wb+') as f:
                 pickle.dump(weights_values, f)
             if self.verbose:

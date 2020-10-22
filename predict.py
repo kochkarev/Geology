@@ -1,13 +1,13 @@
 import tensorflow as tf
 from data_utils import get_imgs_masks, resize_imgs_masks
-from sklearn.model_selection import train_test_split
+# from sklearn.model_selection import train_test_split
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.preprocessing.image import ImageDataGenerator
 from unet import custom_unet
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger
 from tensorflow.keras.optimizers import Adam, SGD
 from metrics import iou, iou_multiclass
-from utils import plot_segm_history
+from utils import plot_segm_history, colorize_mask
 import os
 import numpy as np
 from callbacks import TestResults
@@ -33,25 +33,28 @@ class Prediction:
         custom_loss = functools.partial(losses.weighted_dice_loss, weights=weights)
         custom_loss.__name__ = 'weighted_dice_loss'
         
-        self.model = custom_unet(
-            (patch_size, patch_size, 3),
-            n_classes=n_classes,
-            filters=n_filters,
-            use_batch_norm=True,
-            n_layers=n_layers,
-            output_activation='softmax'
-        )
-        self.model.compile(
-            optimizer=Adam(), 
-            loss = custom_loss,
-            metrics=[iou]
-        )
-        #  custom_objects={"iou":iou, "weighted_dice_loss":custom_loss}
-        self.model.load_weights(model_path)
+        # self.model = custom_unet(
+        #     (patch_size, patch_size, 3),
+        #     n_classes=n_classes,
+        #     filters=n_filters,
+        #     use_batch_norm=True,
+        #     n_layers=n_layers,
+        #     output_activation='softmax'
+        # )
+        # self.model.compile(
+        #     optimizer=Adam(), 
+        #     loss = custom_loss,
+        #     metrics=[iou]
+        # )
+        custom_objects={"iou":iou, "weighted_dice_loss":custom_loss}
+        # self.model.load_weights(model_path)
+
+        self.model = load_model(model_path, custom_objects=custom_objects)
 
         self.patch_size = patch_size
         self.batch_size = batch_size
         self.offset = offset
+        self.n_classes = n_classes
         self.output_path = output_path
 
     def __predict_image__(self, img):
@@ -80,7 +83,7 @@ class Prediction:
 
         for image_name in images:
 
-            image = np.array(Image.open(image_name))
+            image = np.array(Image.open(image_name)).astype(np.float32) / 255
             predicted = self.__predict_image__(image)
             
             # t1=time()
@@ -99,6 +102,8 @@ class Prediction:
             # print(f'argmax {t2-t1} seconds')
 
             visualize_prediction_result(image, np.argmax(predicted, axis=2), os.path.basename(image_name), output_path=self.output_path)
+            # predicted = np.argmax(predicted, axis=-1)
+            # Image.fromarray(colorize_mask(np.dstack((predicted, predicted, predicted)), n_classes=self.n_classes).astype(np.uint8)).save(os.path.join(self.output_path, os.path.basename(image_name)))
             # visualize_prediction_result(image, res, os.path.basename(image_name), output_path=self.output_path)
 
 if __name__ == "__main__":
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     if not os.path.exists(output_path):
         os.makedirs(output_path)
 
-    pred = Prediction(model_path="/Users/a17641623/Documents/Geology/models/model_46_0.07.hdf5", 
+    pred = Prediction(model_path="/home/akochkarev/geology/models/model_46_0.07.hdf5", 
                         output_path=output_path,
                         patch_size=train_params["patch_size"],
                         batch_size=train_params["batch_size"],
@@ -117,19 +122,19 @@ if __name__ == "__main__":
                         n_layers=train_params["n_layers"])
 
     # unmarked = get_unmarked_images(os.path.join("input", "UMNIK_2019", "BoxA_DS1", "img"), os.path.join("input", "dataset"))
-    # unmarked = [f"/Users/a17641623/Documents/Geology/test_img1/{i+1}.jpg" for i in range(4)]
+    unmarked = [f"/home/akochkarev/geology/test_img1/{i+1}.jpg" for i in range(4)]
     # unmarked += ["/Users/a17641623/Documents/Geology/test_img/5.png"]
-    unmarked = [
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-GL26.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Sh-GL49.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Sh-BR-Gl47.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Sh-GL21.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-GL3.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-BR-29.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-BR-GL30.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-GL31.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-BR-28.jpg",
-        "/Users/a17641623/Documents/Geology/input/dataset/Py-Cpy-Sh-BR-GL27.jpg"
-    ]
+    # unmarked = [
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL26.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Sh-GL49.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Sh-BR-Gl47.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Sh-GL21.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL3.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-29.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-GL30.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL31.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-28.jpg",
+    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-GL27.jpg"
+    # ]
     print(unmarked)
     pred.predict(unmarked)

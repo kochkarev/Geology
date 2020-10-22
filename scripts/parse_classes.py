@@ -1,10 +1,11 @@
 def parse_classes():
 
-	import cv2 as cv
+	# import cv2 as cv
 	import glob
 	import json
 	import os
 	import numpy as np
+	from PIL import Image
 
 	proj_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), os.pardir))
 	masks_path = os.path.join(proj_dir, "input", "UMNIK_2019", "BoxA_DS1", "masks_machine", "*.png")
@@ -13,7 +14,8 @@ def parse_classes():
 	result = dict()
 
 	for image in images:
-		img = cv.imread(image)
+		# img = cv.imread(image)
+		img = np.array(Image.open(image))
 		result[image.split(os.sep)[-1]] = np.unique(img).tolist()
 
 	with open(os.path.join(proj_dir, "input", "classes.json"), 'w') as fp:

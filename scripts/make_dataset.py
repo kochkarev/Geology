@@ -2,7 +2,7 @@ import os
 import shutil
 import fnmatch
 import xlrd
-import cv2 as cv
+# import cv2 as cv
 import json
 from PIL import Image
 import numpy as np
@@ -94,10 +94,12 @@ def make_dataset():
 
     def process_mask(mask):
         print('Processing: ' + mask)
-        img = cv.imread(mask)
+        # img = cv.imread(mask)
+        img = np.array(Image.open(mask))
         for value in np.unique(img):
             img[img == value] = data[data_values[value]][1]
-        cv.imwrite(mask.replace(".png","_NEW.png"), img)
+        Image.fromarray(img).save(mask.replace(".png","_NEW.png"))
+        # cv.imwrite(mask.replace(".png","_NEW.png"), img)
 
     dataset_dir = os.path.join(proj_dir, 'input', 'dataset')
     path = os.path.join(proj_dir, 'input', 'UMNIK_2019', 'BoxA_DS1')
