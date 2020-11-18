@@ -10,3 +10,5 @@ models
 *.ipynb
 *.log
 train_params.json
+app/node_modules/
+*.code-workspace

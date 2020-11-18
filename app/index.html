@@ -1,0 +1,54 @@
+<html>
+<head>
+	<link rel="stylesheet" href="./node_modules/bootstrap/dist/css/bootstrap.min.css">
+	<link rel="stylesheet" href="./node_modules/mdbootstrap/css/mdb.min.css">
+	<link rel="stylesheet" href="./css/styles.css">
+</head>
+<body>
+	<div class="btn-toolbar" id="tools-button-block">
+		<button type="button" class="btn btn-primary btn-sm" id="btn_st1">st1</button>
+		<button type="button" class="btn btn-primary btn-sm" id="btn_st2">st2</button>
+		<button type="button" class="btn btn-primary btn-sm" id="btn_stop">stop</button>
+	</div>
+	<div class="btn-toolbar" id="tools-selector-algo">
+		<select class="custom-select custom-select-sm" id='selector-algo'>
+			<option value="1">Texture features</option>
+			<option value="2">CNN features</option>
+			<option value="3">CNN features + dist</option>
+		  </select>
+	</div>
+	<div class="btn-toolbar" id="tools-selector-anno">
+		<div class="custom-control custom-radio custom-control-inline">
+			<input type="radio" class="custom-control-input" id="r1" name="classSelector" value="object" checked>
+			<label class="custom-control-label" for="r1">object</label>
+		</div>
+		<div class="custom-control custom-radio custom-control-inline">
+			<input type="radio" class="custom-control-input" id="r2" name="classSelector" value="background">
+			<label class="custom-control-label" for="r2">background</label>
+		</div>
+	</div>
+
+	<div class="image-zone scrollbar-primary square thin" id='main-image-zone'>
+		<img alt="image" src="https://mdbootstrap.com/img/Photos/Others/food3.jpg" style="z-index: 0;" id="img"/>
+		<canvas id="canv-anno" width="500", height="500", style="position: absolute; top: 0; left: 0; opacity: 0.5; z-index: 1"></canvas>
+		<canvas id="canv-brush" width="500", height="500", style="position: absolute; top: 0; left: 0;  opacity: 0.5; z-index: 2"></canvas>
+	</div>
+
+	<div class="side-panel">
+		<div class="image-selector">
+			<h2 class='my-header'>Images</h2>
+			<ul class="my-vertical-scroll scrollbar-primary square thin" id="files-list"></ul>		
+		</div>
+		<div class="image-statistics">
+			<h2 class='my-header'>Statistics</h2>
+			<div class="my-vertical-scroll scrollbar-primary square thin">
+			<p>Lorem ipsum dolor sit amet consectetur adipisicing elit.
+				Lorem ipsum, dolor sit amet consectetur adipisicing elit.
+				Sed in perferendis molestias quae. Ea modi reiciendis, fugiat dolores cum unde at totam odio labore quo necessitatibus hic aliquid placeat repudiandae! Lorem ipsum dolor sit amet consectetur adipisicing elit. Aspernatur placeat sunt dicta, dolores ea corrupti ab rem vero! Quos, rerum amet quo possimus id pariatur aperiam ut minima nisi consequuntur! Lorem ipsum dolor sit, amet consectetur adipisicing elit. Numquam quae rerum maiores tenetur. Harum maiores sint, deserunt iure neque laudantium. Explicabo ea facere natus nostrum nihil atque perferendis consequatur possimus. Lorem ipsum dolor sit amet consectetur, adipisicing elit. Sequi optio error itaque nihil facere, eaque enim accusamus quo incidunt repudiandae, nesciunt, ad aperiam fuga perspiciatis? Veniam architecto quod quo non.</p>
+			</div>
+		</div>
+	</div>	
+	
+	<script src="gui.js"></script>
+</body>
+</html>
