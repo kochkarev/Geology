@@ -1,26 +1,27 @@
 const path = require('path');
 const fs = require('fs');
 
-class ChunkedAnnotation {
+
+class InstAnnotation {
 	constructor() {
-		this.chunkMap = null;
-		this.chunks = [];
+		this.instMap = null;
+		this.instances = [];
 	}
 
-	addChunk(chunk) {
-		this.chunks.push(chunk);
+	addInst(inst) {
+		this.instances.push(inst);
 	}
 
-	updateChunkMap(chunkMap) {
-		this.chunkMap = chunkMap;
+	updateInstMap(instMap) {
+		this.instMap = instMap;
 	}
 
-	getChunkByCoords(x, y) {
-		if (!this.chunkMap) {
+	getInstByCoords(x, y) {
+		if (!this.instMap) {
 			return null;
 		}
-		let chunk_id = this.chunkMap.data[y * this.chunkMap.h + x];
-		return this.chunks[chunk_id];
+		let inst_id = this.instMap.data[y * this.instMap.h + x];
+		return this.instances[inst_id];
 	}
 }
 
@@ -40,7 +41,7 @@ class ImageList {
             imageFullPath: fullFilePath,
             imageName: path.parse(fullFilePath).base,
 			annotationFullPath: this.readAnnotation(fullFilePath),
-			annotation: new ChunkedAnnotation()
+			annotation: new InstAnnotation()
 		};
         this.items.push(imageItem);
     }
@@ -78,14 +79,14 @@ class ImageList {
 		this.backend.getFullAnnotation(imgStruct.annotationFullPath, imgStruct.id);
 	}
 
-	updateAnnotationChunk(chunk) {
-		this.items[chunk.imgid].annotation.addChunk(chunk);
+	updateAnnoInst(inst) {
+		this.items[inst.imgid].annotation.addInst(inst);
 	}
 
-	updateAnnotationChunkMap(chunkMap) {
-		this.items[chunkMap.imgid].annotation.updateChunkMap(chunkMap);
+	updateAnnoInstMap(instMap) {
+		this.items[instMap.imgid].annotation.updateInstMap(instMap);
 	}
 }
 
 
-module.exports = {ChunkedAnnotation: ChunkedAnnotation, ImageList: ImageList}
+module.exports = {InstdAnnotation: InstAnnotation, ImageList: ImageList}

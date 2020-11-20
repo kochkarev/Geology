@@ -4,24 +4,27 @@ const path = require('path');
 const { BackendCommunicator } = require('./utils/backend');
 const { ImageList } = require('./utils/structs');
 
-const backend_cfg = {
-	pyenv_name: 'tf',
-	pyenv_path: 'C:/Users/xubiker/Anaconda3/envs/tf/python',
-	src_path: './backend/server.py'
+const backendCfg = {
+	pyEnvName: 'tf',
+	pyEnvPath: 'C:/Users/xubiker/Anaconda3/envs/tf/python',
+	srcPath: './backend/server.py'
 };
 
 let backend = null;
 let imageList = null;
 
 
-function handler_array(arr, header) {
+function handlerArray(arr, header) {
 	if ('ext' in header) {
-		if (header.ext == 'chunk') {
-			let chunk = {'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0], 'class': header.class, 'imgid': header.imgid, 'mask': arr};
-			imageList.updateAnnotationChunk(chunk);
-		} else if (header.ext == 'chunk-map') {
-			let chunkMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr}
-			imageList.updateAnnotationChunkMap(chunkMap);
+		if (header.ext == 'inst') {
+			let inst = {
+				'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0],
+				'class': header.class, 'imgid': header.imgid, 'mask': arr
+			};
+			imageList.updateAnnoInst(inst);
+		} else if (header.ext == 'inst-map') {
+			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr}
+			imageList.updateAnnoInstMap(instMap);
 		}
 	} else {
 		console.log(`#arr: shape[${header.shape}]. Got ${arr.length} bytes`);
@@ -29,22 +32,22 @@ function handler_array(arr, header) {
 	//this.win.webContents.send('anno-update', arr);
 }
 
-function handler_signal(s) {
+function handlerSignal(s) {
 	if (s === 'A1') {
 		console.log('annotation received!');
-		imageList.items[0].annotation.getChunkByCoords(100, 500);
+		imageList.items[0].annotation.getInstByCoords(100, 500);
 	}
 }
 
-function handler_string(s) {
+function handlerString(s) {
 	console.log('#str: ' + s);
 }
 
 
 function foo(x, y) {
-	let chunk = imageList?.getActiveItem()?.annotation.getChunkByCoords(x, y);
-	if (chunk) {
-		console.log(chunk.id);
+	let inst = imageList?.getActiveItem()?.annotation.getInstByCoords(x, y);
+	if (inst) {
+		console.log(inst.id);
 	}
 }
 
@@ -58,16 +61,16 @@ app.on('ready', () => {
 
 	win.webContents.on('did-finish-load', () => {
         backend = new BackendCommunicator(
-			backend_cfg,
-			(arr, header) => handler_array(arr, header),
-			(sig) => handler_signal(sig),
-			(str) => handler_string(str)
+			backendCfg,
+			(arr, header) => handlerArray(arr, header),
+			(sig) => handlerSignal(sig),
+			(str) => handlerString(str)
 		);
 		imageList = new ImageList(backend, win.webContents);
 
 
 		backend.ping();
-		backend.ping_image();
+		backend.pingImage();
 
 		// ipcMain.on('stop-algo', (event, arg) => backend.stop_algo());
 		// // ipcMain.on('btn_req_click', (event, arg) => backend.ping_image());

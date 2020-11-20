@@ -3,7 +3,7 @@ class BufferHandler {
 	constructor(processMsgFunction) {
 		this.prev = null;
 		this.bytesWanted = -1;
-		this.processMsgFunction = processMsgFunction;
+		this.processMsgFun = processMsgFunction;
 	}
 
 	setBytesWanted(bytesWantToRead) {
@@ -25,7 +25,7 @@ class BufferHandler {
 					continue;
 				}
 				this.bytesWanted = -1;
-				this.processMsgFunction(this.prev);
+				this.processMsgFun(this.prev);
 				this.prev = null;
 				buf = buf.slice(i + 2);
 			}

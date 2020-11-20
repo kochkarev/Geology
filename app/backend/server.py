@@ -7,10 +7,9 @@ from PIL import Image
 from scipy.ndimage import label
 
 
+active_anno_img: np.ndarray = None
 
-activeAnnotationImage: np.ndarray = None
-
-classIndices = list(range(1, 17))
+class_indices = list(range(1, 17))
 
 
 def send_string(s):
@@ -30,15 +29,15 @@ def send_signal(s):
 #     return data[:h, :w, ...]
 
 
-def read_image_with_anno(header):
-    w, h = int(header['width']), int(header['height'])
-    img_path = header['image_path']
-    support_level = header['support']
-    step = header['step']
-    anno = np.frombuffer(sys.stdin.buffer.read(w * h), dtype=np.uint8, count=w*h)
-    anno = np.reshape(anno, [h, w])
-    image = np.array(Image.open(img_path), dtype=np.uint8)
-    return image, anno, support_level, step
+# def read_image_with_anno(header):
+#     w, h = int(header['width']), int(header['height'])
+#     img_path = header['image_path']
+#     support_level = header['support']
+#     step = header['step']
+#     anno = np.frombuffer(sys.stdin.buffer.read(w * h), dtype=np.uint8, count=w*h)
+#     anno = np.reshape(anno, [h, w])
+#     image = np.array(Image.open(img_path), dtype=np.uint8)
+#     return image, anno, support_level, step
 
 
 def send_array(img: np.ndarray, ext_type=None, optional=None):
@@ -64,25 +63,23 @@ def bbox(img, v):
     return int(rmin), int(cmin), mask
 
 
-def createChunkedAnnotation(annotationPath: str, id: int):
-    global activeAnnotationImage
-    activeAnnotationImage = np.array(Image.open(annotationPath))
-    activeAnnotationImage = activeAnnotationImage[:, :, 0]
-    send_string(f'annotation updated to {annotationPath}, shape: {activeAnnotationImage.shape}')
-    chunkMap = np.zeros(activeAnnotationImage.shape[:2] + (3,), dtype=np.uint8)
-    chunkId = 0
-    for ci in classIndices:
-        classAnno = np.where(activeAnnotationImage == ci, 1, 0)
-        if np.max(classAnno > 0):
-            labeled, n = label(classAnno)
+def create_inst_anno(anno_path: str, id: int):
+    global active_anno_img
+    active_anno_img = np.array(Image.open(anno_path))[:, :, 0]
+    send_string(f'annotation updated to {anno_path}, shape: {active_anno_img.shape}')
+    inst_map = np.zeros(active_anno_img.shape[:2] + (3,), dtype=np.uint8)
+    iid = 0
+    for ci in class_indices:
+        class_anno = np.where(active_anno_img == ci, 1, 0)
+        if np.max(class_anno > 0):
+            labeled, n = label(class_anno)
             for i in range(1, n + 1):
                 r, c, mask = bbox(labeled, i)
-                send_array(mask, ext_type='chunk', optional={'id': chunkId, 'class': 0, 'r': r, 'c': c, 'imgid': id})
-                # chunkMap[labeled == i, :] = [chunkId, chunkId, chunkId]
-                chunkMap[labeled == i, :] = [chunkId % 256, chunkId // 256 % 256, chunkId // 256 //256]
-                chunkId += 1
-    send_string(f'chunkMap: {chunkMap.shape}, {np.min(chunkMap[:])}-{np.max(chunkMap[:])}')
-    send_array(chunkMap, ext_type='chunk-map', optional={'imgid': id})
+                send_array(mask, ext_type='inst', optional={'id': iid, 'class': 0, 'r': r, 'c': c, 'imgid': id})
+                inst_map[labeled == i, :] = [iid % 256, iid // 256 % 256, iid // 256 //256]
+                iid += 1
+    send_string(f'inst-map: {inst_map.shape}, {np.min(inst_map[:])}-{np.max(inst_map[:])}')
+    send_array(inst_map, ext_type='inst-map', optional={'imgid': id})
     send_signal('A1')
 
 
@@ -101,6 +98,6 @@ while True:
     elif command == 'stop':
         pass
     elif command == 'get-annotation':
-        createChunkedAnnotation(header['path'], int(header['id']))
+        create_inst_anno(header['path'], int(header['id']))
     elif command == 'shutdown':
         break

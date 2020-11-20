@@ -4,19 +4,19 @@ const { BufferHandler } = require('./buffer');
 
 class BackendCommunicator {
 
-	constructor(cfg, handler_array, handler_signal, handler_string) {
-		let {pyenv_name, pyenv_path, src_path} = cfg;
-		this.bufferHandler = new BufferHandler(msg =>  this.process_backend_message(msg));
-		this.handler_array = handler_array;
-		this.handler_signal = handler_signal;
-		this.handler_string = handler_string;
+	constructor(cfg, handlerArray, handlerSignal, handlerString) {
+		let {pyEnvName: pyEnvName, pyEnvPath: pyEnvPath, srcPath: srcPath} = cfg;
+		this.bufHandler = new BufferHandler(msg =>  this.processBackendMsg(msg));
+		this.hArray = handlerArray;
+		this.hSignal = handlerSignal;
+		this.hString = handlerString;
 
 		this.state = null;
 		this.image_header = null;
-		this.proc = spawn(`activate ${pyenv_name} && ${pyenv_path} ${src_path}`, {
+		this.proc = spawn(`activate ${pyEnvName} && ${pyEnvPath} ${srcPath}`, {
 			shell: true,
 		});
-		this.proc.stdout.on('data', buf => this.bufferHandler.processInputBuffer(buf))
+		this.proc.stdout.on('data', buf => this.bufHandler.processInputBuffer(buf))
 		this.proc.stdout.on('end', () => {console.log('#end')});
 		this.proc.stderr.on('data', (data) => console.error(`#err: ${data}`));
 		this.proc.on('exit', (code, signal) => console.log(`#exit with code ${code} and signal ${signal}`));
@@ -36,38 +36,38 @@ class BackendCommunicator {
 		this._sendJSON({'type': 'ping'});
 	}
 
-	ping_image() {
+	pingImage() {
 		this._sendJSON({'type': 'ping_image'});
     }
     
-	process_backend_message(message) {
+	processBackendMsg(message) {
 		if (this.state === null) {
 			try {
 				let msg_json = JSON.parse(message.toString());
 				switch (msg_json.type) {
 					case 'string':
-						this.handler_string(msg_json.content);
+						this.hString(msg_json.content);
 						break;
 					case 'array':
 						this.image_header = msg_json;
 						this.state = 'array';
-						this.bufferHandler.setBytesWanted(msg_json.shape.reduce((a, b) => a * b));
+						this.bufHandler.setBytesWanted(msg_json.shape.reduce((a, b) => a * b));
 						break;
 					case 'sig':
-						this.handler_signal(msg_json.val);
+						this.hSignal(msg_json.val);
 						break;
 				}
 			} catch (e) {
 				console.log(`#unsupported: ${message.toString()}\n`);
 			}
 		} else if (this.state === 'array') {
-			this.handler_array(new Uint8Array(message), this.image_header);
+			this.hArray(new Uint8Array(message), this.image_header);
 			this.state = null;
 		}
 	}
 
 	
-	send_annotation(header, data) {
+	sendAnnotation(header, data) {
 		this._sendJSON(header);
 		this.proc.stdin.write(data);
 	}
