@@ -80,7 +80,7 @@ def create_inst_anno(anno_path: str, id: int):
                 iid += 1
     send_string(f'inst-map: {inst_map.shape}, {np.min(inst_map[:])}-{np.max(inst_map[:])}')
     send_array(inst_map, ext_type='inst-map', optional={'imgid': id})
-    send_signal('A1')
+    send_signal(f'A{id}')
 
 
 while True:

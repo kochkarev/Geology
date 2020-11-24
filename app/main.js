@@ -12,6 +12,7 @@ const backendCfg = {
 
 let backend = null;
 let imageList = null;
+let annoController = null;
 
 
 function handlerArray(arr, header) {
@@ -33,9 +34,10 @@ function handlerArray(arr, header) {
 }
 
 function handlerSignal(s) {
-	if (s === 'A1') {
-		console.log('annotation received!');
-		imageList.items[0].annotation.getInstByCoords(100, 500);
+	if (s.startsWith('A')) {
+		let imgId = parseInt(s.slice(1));
+		// console.log(`annotation for image ${imgId} received!`);
+		imageList.onAnnotationLoaded(imgId);
 	}
 }
 
@@ -43,6 +45,26 @@ function handlerString(s) {
 	console.log('#str: ' + s);
 }
 
+
+class AnnotattionRendererController {
+	constructor(imgList, renderer) {
+		this.imgList = imgList;
+		this.renderer = renderer;
+		this.imgId = null;
+		this.prevIid = null;
+	}
+
+	onMouseMove(x, y) {
+		// let inst = imageList?.getActiveItem()?.annotation.getInstByCoords(x, y);
+		// if (inst) {
+			// console.log(inst.id);
+		// }
+	}
+
+	onActiveImageUpdate() {
+
+	}
+}
 
 function foo(x, y) {
 	let inst = imageList?.getActiveItem()?.annotation.getInstByCoords(x, y);
@@ -68,6 +90,8 @@ app.on('ready', () => {
 		);
 		imageList = new ImageList(backend, win.webContents);
 
+		annoController = new AnnotattionRendererController(imageList, win.webContents);
+
 
 		backend.ping();
 		backend.pingImage();
@@ -81,12 +105,13 @@ app.on('ready', () => {
 	// ipcMain.on('stop-algo', (event, arg) => backend.stop_algo());
 	// ipcMain.on('btn_req_click', (event, arg) => backend.ping_image());
     // ipcMain.on('anno', (event, args) => backend.send_annotation(args[0], args[1]));
-    ipcMain.on('mouse-move', (event, args) => foo(args[0], args[1]));
+	ipcMain.on('active-image-update', (event, args) => imageList.onActiveImageUpdate(args));
+	// ipcMain.on('mouse-move', (event, args) => annoController.onMouseMove(args[0], args[1]));
 
 	const mainMenu = Menu.buildFromTemplate(menuTemplate);
 	Menu.setApplicationMenu(mainMenu);
 
-	//win.webContents.openDevTools();    
+	win.webContents.openDevTools();    
 	
 	
 })
@@ -145,7 +170,8 @@ function dialog_import_files() {
 		.then(res => {
 			if (!res.canceled) {
 				imageList.addImages(res.filePaths);
-				imageList.changeActiveImageIdx();
+				win.webContents.send('files-added', res.filePaths);
+				// imageList.changeActiveImageIdx();
 			}
 		})
 		.catch( (e) =>

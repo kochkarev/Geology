@@ -6,6 +6,7 @@ class InstAnnotation {
 	constructor() {
 		this.instMap = null;
 		this.instances = [];
+		this.loaded = false;
 	}
 
 	addInst(inst) {
@@ -23,6 +24,18 @@ class InstAnnotation {
 		let inst_id = this.instMap.data[y * this.instMap.h + x];
 		return this.instances[inst_id];
 	}
+
+	isEmpty() {
+		return this.instances.length === 0;
+	}
+
+	setLoaded() {
+		this.loaded = true;
+	}
+
+	isLoaded() {
+		return this.loaded;
+	}
 }
 
 class ImageList {
@@ -31,8 +44,6 @@ class ImageList {
         this.backend = backend
         this.renderer = renderer
         this.items = [];
-        this.activeIdx = 0;
-        this.activeIdxPrev = 0;
     }
 
     addImage(fullFilePath) {
@@ -52,10 +63,6 @@ class ImageList {
         }
         console.log(this.items);
     }
-
-    updateRendererImage() {
-        //this.renderer.send();
-	}
 	
 	readAnnotation(imageFullPath) {
 		let p = path.parse(imageFullPath);
@@ -67,16 +74,18 @@ class ImageList {
 		}
 	}
 
-	getActiveItem() {
-		return this.items.length === 0 ? null : this.items[this.activeIdx]
+	onAnnotationLoaded(imgId) {
+		console.log(`annotation for image ${imgId} received!`);
+		this.items[imgId].annotation.setLoaded();
 	}
 
-	changeActiveImageIdx(newActiveIdx = 0) {
-		this.activeIdxPrev = this.activeIdx;
-		this.activeIdx = newActiveIdx;
-		let imgStruct = this.items[newActiveIdx];
-		console.log(imgStruct);
-		this.backend.getFullAnnotation(imgStruct.annotationFullPath, imgStruct.id);
+	onActiveImageUpdate(activeIdx) {
+		console.log(`active image update: ${activeIdx}`);
+		let imgStruct = this.items[activeIdx];
+		if (!imgStruct.annotation.isLoaded()) {
+			this.backend.getFullAnnotation(imgStruct.annotationFullPath, imgStruct.id);
+		}
+		
 	}
 
 	updateAnnoInst(inst) {

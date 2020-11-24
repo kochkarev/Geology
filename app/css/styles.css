@@ -79,7 +79,7 @@ html, body {
     border: 2px solid gray;
     overflow: auto;
     top: 3em;
-    cursor: none;
+    /* cursor: none; */
 }
 
 .my-vertical-scroll {
