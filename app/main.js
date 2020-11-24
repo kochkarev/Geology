@@ -12,7 +12,6 @@ const backendCfg = {
 
 let backend = null;
 let imageList = null;
-let annoController = null;
 
 
 function handlerArray(arr, header) {
@@ -24,13 +23,12 @@ function handlerArray(arr, header) {
 			};
 			imageList.updateAnnoInst(inst);
 		} else if (header.ext == 'inst-map') {
-			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr}
+			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr};
 			imageList.updateAnnoInstMap(instMap);
 		}
 	} else {
 		console.log(`#arr: shape[${header.shape}]. Got ${arr.length} bytes`);
 	}
-	//this.win.webContents.send('anno-update', arr);
 }
 
 function handlerSignal(s) {
@@ -43,34 +41,6 @@ function handlerSignal(s) {
 
 function handlerString(s) {
 	console.log('#str: ' + s);
-}
-
-
-class AnnotattionRendererController {
-	constructor(imgList, renderer) {
-		this.imgList = imgList;
-		this.renderer = renderer;
-		this.imgId = null;
-		this.prevIid = null;
-	}
-
-	onMouseMove(x, y) {
-		// let inst = imageList?.getActiveItem()?.annotation.getInstByCoords(x, y);
-		// if (inst) {
-			// console.log(inst.id);
-		// }
-	}
-
-	onActiveImageUpdate() {
-
-	}
-}
-
-function foo(x, y) {
-	let inst = imageList?.getActiveItem()?.annotation.getInstByCoords(x, y);
-	if (inst) {
-		console.log(inst.id);
-	}
 }
 
 app.on('ready', () => {
@@ -90,11 +60,9 @@ app.on('ready', () => {
 		);
 		imageList = new ImageList(backend, win.webContents);
 
-		annoController = new AnnotattionRendererController(imageList, win.webContents);
 
-
-		backend.ping();
-		backend.pingImage();
+		// backend.ping();
+		// backend.pingImage();
 
 		// ipcMain.on('stop-algo', (event, arg) => backend.stop_algo());
 		// // ipcMain.on('btn_req_click', (event, arg) => backend.ping_image());

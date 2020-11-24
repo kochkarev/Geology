@@ -1,9 +1,10 @@
 const path = window.require('path');
 
 class ShallowImgStruct {
-    constructor(filePath) {
+    constructor(filePath, maskPath) {
         this.filePath = filePath;
         this.fileName = path.parse(filePath).base;
+        this.maskPath = maskPath;
         let li = document.createElement('li');
         li.className = "list-group-item";
         li.innerHTML = this.fileName;
@@ -21,8 +22,8 @@ class ShallowImageList {
         this.updateImageCallBack = updateImageCallBack;
     }
 
-    addFile(filePath) {
-        let imgStruct = new ShallowImgStruct(filePath);
+    addFile(filePath, maskPath) {
+        let imgStruct = new ShallowImgStruct(filePath, maskPath);
         this.items.push(imgStruct);
         this.listGroupHTML.append(imgStruct.li);
         if (this.items.length === 1) {
@@ -32,7 +33,9 @@ class ShallowImageList {
 
     addFiles(filePaths) {
         for (let filePath of filePaths) {
-            this.addFile(filePath);
+            let p = path.parse(filePath);
+            let maskPath = path.join(p.dir, p.name + '_mask' + '.png');            
+            this.addFile(filePath, maskPath);
         }
     }
 

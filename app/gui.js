@@ -1,75 +1,109 @@
 const {ipcRenderer} = require('electron');
 const fs = window.require('fs');
-const path = window.require('path');
+const UPNG = require('upng-js');
 
 const {ShallowImgStruct, ShallowImageList} = require('./utils/structs_ui')
 
 const main_image_zone = document.getElementById('main-image-zone');
 const img = document.getElementById('img');
 const canv_class_anno = document.getElementById('canv-class-anno');
-// const canv_brush = document.getElementById('canv-brush');
-// const ctx_anno = canv_anno.getContext('2d');
+const canv_inst_anno = document.getElementById('canv-inst-anno');
+const ctx_class_anno = canv_class_anno.getContext('2d');
+const ctx_inst_anno = canv_inst_anno.getContext('2d');
 // const ctx_brush = canv_brush.getContext('2d');
 
-let selectedClass = 'object';
-let [prev_x, prev_y] = [0, 0]
+// let selectedClass = 'object';
+// let [prev_x, prev_y] = [0, 0]
 
-let mouseRad = 5;
+// let mouseRad = 5;
+
+let inst_anno = null;
+let inst_id = -1;
+let prev_inst_id = -1;
+
+let scale = 0.5;
+
 let mouseDown = false;
 
-const annoColors = {'object': 'rgb(255, 255, 0)', background: 'rgb(0, 255, 0)'};
-const annoColorsArr = [[0, 0, 0], [255, 255, 0], [0, 255, 0]];
+let activeAnnotation = null;
 
-const supportLevels = ['off', 'CNN', 'CNN+dist']
-let selectedSupportLevel = 1
-
-document.getElementById('r1').addEventListener('click', () => {
-    selectedClass = 'object';
-});
-document.getElementById('r2').addEventListener('click', () => {
-    selectedClass = 'background';
-});
-
-document.getElementById('selector-algo').onchange = () => {
-    e = document.getElementById('selector-algo');
-    selectedSupportLevel = e.options[e.selectedIndex].value
+const annoColors = {
+    1: 'rgb(255, 255, 0)',
+    2: 'rgb(0, 255, 255)',
+    3: 'rgb(0, 255, 0)',
+    4: 'rgb(0, 0, 255)',
+    5: 'rgb(255, 0, 0)',
+    6: 'rgb(100, 255, 0)',
+    7: 'rgb(255, 100, 100)',
 };
+const annoColorsArr = [
+    [0, 0, 0],
+    [255, 255, 0],
+    [0, 255, 255],
+    [0, 255, 0],
+    [0, 0, 255],
+    [255, 0, 0],
+    [100, 255, 0],
+    [255, 100, 100],
+    [100, 255, 255],
+    [200, 50, 80],
+    [80, 50, 200],
+    [20, 120, 255],
+    [120, 20, 255],
 
-updateCanvSize();
+];
 
 
-
-function updateBrushSize(code, step = 1) {
-    console.log('update brush');
-    if (code === 'BracketRight') {
-        mouseRad += step;
-    } else if (code === 'BracketLeft') {
-        mouseRad -= step;
-    }
-    console.log(mouseRad);
-    renderCursorMove(prev_x, prev_y, prev_x, prev_y);
-}
-
-function updateCanvSize() {
+function updateCanvSize(img) {
     canv_class_anno.width = img.width;
     canv_class_anno.height = img.height;
-    // canv_brush.width = img.width;
-    // canv_brush.height = img.height;
+    canv_inst_anno.width = img.width;
+    canv_inst_anno.height = img.height;
 }
 
 function updateImg(imgStruct, idx) {
     let _img = fs.readFileSync(imgStruct.filePath).toString('base64');
     img.src = `data:image/jpg;base64,${_img}`;
     img.onload = function(){
-        updateCanvSize();
-        // if (imgStructs.inputAnnotations[index] !== null)
-            // ctx_anno.putImageData(imgStructs.inputAnnotations[imgStructs.activeIdx], 0, 0);
+        updateCanvSize(img);
+        let mask = UPNG.decode(fs.readFileSync(imgStruct.maskPath));
+        let c = colorizeClassAnno(mask, annoColorsArr, alpha=150);
+        ctx_class_anno.putImageData(new ImageData(c, mask.width, mask.height), 0, 0);
     }
     ipcRenderer.send('active-image-update', idx);
 }
 
+function updateInstAnnotation(anno) {
+    inst_anno = anno;
+}
 
-function renderCursorMove(x1, y1, x2, y2, alpha=1.0) {
+function updateInstMask(inst) {
+    console.log(inst);
+    ctx_inst_anno.clearRect(0, 0, canv_inst_anno.width, canv_inst_anno.height);
+    if (inst) {
+        let colorized = colorizeInstMask(inst, annoColorsArr, 255);
+        ctx_inst_anno.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
+    }
+}
+
+function renderCursorMove(x, y, alpha=1.0) {
+    if (inst_anno) {
+        if (!inst_anno.instMap) {
+            return;
+        }
+        let inst_id = inst_anno.instMap.data[(y * inst_anno.instMap.w + x) * 3];
+        if (inst_id !== prev_inst_id) {
+            updateInstMask(inst_anno.instances[inst_id - 1]);
+            // if (inst_id > 0) {
+            //     let inst = inst_anno.instances[inst_id - 1];
+            // }
+            prev_inst_id = inst_id;
+        }
+        // let inst = inst_anno.instances[inst_id];
+        // console.log(inst);
+        // let inst = inst_anno.getInstByCoords(x, y);
+        // console.log(inst);
+    }
     // ctx_brush.clearRect(x1 - mouseRad * 2, y1 - mouseRad * 2, 4 * mouseRad, 4 * mouseRad);
     // ctx_brush.globalAlpha = alpha;
     // ctx_brush.fillStyle = annoColors[selectedClass];
@@ -77,33 +111,32 @@ function renderCursorMove(x1, y1, x2, y2, alpha=1.0) {
 }
 
 function getCanvasCoords(e) {
-    // var rect = canv_brush.getBoundingClientRect();
-    // let x = e.clientX - rect.left;
-    // let y = e.clientY - rect.top;
-    // return [x, y];
-    return [0, 0];
+    var rect = canv_class_anno.getBoundingClientRect();
+    let x = Math.round(e.clientX - rect.left);
+    let y = Math.round(e.clientY - rect.top);
+    return [x, y];
 }
 
-main_image_zone.addEventListener('mousedown', (e) => {
-    mouseDown = true;
-    let [x, y] = getCanvasCoords(e);
-    renderScribble(x, y, x, y);
-})
+// main_image_zone.addEventListener('mousedown', (e) => {
+//     mouseDown = true;
+//     let [x, y] = getCanvasCoords(e);
+//     renderScribble(x, y, x, y);
+// })
 
-main_image_zone.addEventListener('mouseup', (e) => {
-    mouseDown = false;
-    imgStructs.inputAnnotations[imgStructs.activeIdx] = ctx_anno.getImageData(0, 0, canv_class_anno.width, canv_class_anno.height);
-})
+// main_image_zone.addEventListener('mouseup', (e) => {
+//     mouseDown = false;
+//     imgStructs.inputAnnotations[imgStructs.activeIdx] = ctx_anno.getImageData(0, 0, canv_class_anno.width, canv_class_anno.height);
+// })
 
 main_image_zone.addEventListener('mousemove', (e) => {
     let [x, y] = getCanvasCoords(e);
-    if (mouseDown)
-        renderScribble(prev_x, prev_y, x, y);
-    else
-        renderCursorMove(prev_x, prev_y, x, y);
+    if (mouseDown) {
+        // renderScribble(prev_x, prev_y, x, y);
+    }
+    else {
+        renderCursorMove(x, y);
+    }
     [prev_x, prev_y] = [x, y];
-
-    ipcRenderer.send('mouse-move', [x, y]);
 });
 
 let imgStructs = new ShallowImageList(
@@ -114,8 +147,8 @@ let imgStructs = new ShallowImageList(
 document.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowDown' || e.code === 'ArrowUp')
         imgStructs.moveSelection(e.code);
-    else if (e.code === 'BracketLeft' || e.code === 'BracketRight')
-        updateBrushSize(e.code);
+    // else if (e.code === 'BracketLeft' || e.code === 'BracketRight')
+    //     updateBrushSize(e.code);
 });
 
 imgStructs.listGroupHTML.addEventListener('click', e => imgStructs.selectClick(e));
@@ -128,50 +161,39 @@ ipcRenderer.on('files-added', (e, data) => {
     imgStructs.addFiles(data);
 });
 
-ipcRenderer.on('anno-update', (event, anno) => {
-    let img_data = new ImageData(decompressToColoredAnno(anno, annoColorsArr, alpha=255), canv_class_anno.width, canv_class_anno.height);
-    ctx_anno.putImageData(img_data, 0, 0);
+ipcRenderer.on('anno-loaded', (event, idx, anno) => {
+    console.log(`Hey! Got annotation update ${idx}`);
+    if (idx == imgStructs.activeIdx) {
+        updateInstAnnotation(anno);
+    }
 });
 
-function decompressToColoredAnno(anno, colors, alpha) {
-    let anno_decompressed = new Uint8ClampedArray(anno.length * 4);
-    for (i = 0; i < anno.length; i ++) {
-        let v = anno[i];
-        anno_decompressed[4 * i] = colors[v][0];
-        anno_decompressed[4 * i + 1] = colors[v][1];
-        anno_decompressed[4 * i + 2] = colors[v][2];
+function colorizeClassAnno(png, colors, alpha) {
+    // console.log(png);
+    let anno = new Uint8ClampedArray(png.width * png.height * 4);
+    for (i = 0; i < png.width * png.height; i++) {
+        let v = png.data[3 * i];
+        // console.log(v);
+        anno[4 * i] = colors[v][0];
+        anno[4 * i + 1] = colors[v][1];
+        anno[4 * i + 2] = colors[v][2];
         if (v > 0)
-            anno_decompressed[4 * i + 3] = alpha;
+            anno[4 * i + 3] = alpha;
     }
-    return anno_decompressed;    
+    // console.log(anno);
+    return anno;    
 }
 
-function compressColoredAnno(anno, colors) {
-    let anno_compressed = new Uint8Array(anno.length / 4);
-    let dist = new Uint16Array(colors.length);
-    for (i = 0; i < anno.length; i += 4) {
-        let r = anno[i];
-        let g = anno[i + 1];
-        let b = anno[i + 2];        
-        for (j = 0; j < colors.length; j++) {
-            dist[j] = (r - colors[j][0]) ** 2 + (g - colors[j][1]) ** 2 + (b - colors[j][2]) ** 2;
+function colorizeInstMask(inst, colors, alpha) {
+    let color = colors[inst.class];
+    let anno = new Uint8ClampedArray(inst.w * inst.h * 4);
+    for (i = 0; i < inst.w * inst.h; i ++) {
+        if (inst.mask[i] > 0) {
+            anno[4 * i] = color[0];
+            anno[4 * i + 1] = color[1];
+            anno[4 * i + 2] = color[2];
+            anno[4 * i + 3] = alpha;
         }
-        anno_compressed[i / 4] = dist.indexOf(Math.min(...dist));
     }
-    return anno_compressed;
-}
-
-
-function runClick(step) {
-    let anno = ctx_anno.getImageData(0, 0, canv_class_anno.width, canv_class_anno.height).data;
-    let anno_compact = compressColoredAnno(anno, annoColorsArr);
-    let header = {
-        'type': 'anno',
-        'width': canv_class_anno.width,
-        'height': canv_class_anno.height,
-        'image_path': imgStructs.filePaths[imgStructs.activeIdx],
-        'support': supportLevels[selectedSupportLevel - 1],
-        'step': step
-    };
-    ipcRenderer.send('anno', [header, anno_compact]);
+    return anno;    
 }

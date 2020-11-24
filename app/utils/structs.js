@@ -17,13 +17,13 @@ class InstAnnotation {
 		this.instMap = instMap;
 	}
 
-	getInstByCoords(x, y) {
-		if (!this.instMap) {
-			return null;
-		}
-		let inst_id = this.instMap.data[y * this.instMap.h + x];
-		return this.instances[inst_id];
-	}
+	// getInstByCoords(x, y) {
+	// 	if (!this.instMap) {
+	// 		return null;
+	// 	}
+	// 	let inst_id = this.instMap.data[y * this.instMap.h + x];
+	// 	return this.instances[inst_id];
+	// }
 
 	isEmpty() {
 		return this.instances.length === 0;
@@ -43,7 +43,8 @@ class ImageList {
     constructor(backend, renderer) {
         this.backend = backend
         this.renderer = renderer
-        this.items = [];
+		this.items = [];
+		this.activeIdx = -1;
     }
 
     addImage(fullFilePath) {
@@ -77,15 +78,24 @@ class ImageList {
 	onAnnotationLoaded(imgId) {
 		console.log(`annotation for image ${imgId} received!`);
 		this.items[imgId].annotation.setLoaded();
+		if (imgId == this.activeIdx) {
+			this._sendAnnoToRenderer(this.activeIdx);
+		}
 	}
 
 	onActiveImageUpdate(activeIdx) {
+		this.activeIdx = activeIdx;
 		console.log(`active image update: ${activeIdx}`);
 		let imgStruct = this.items[activeIdx];
 		if (!imgStruct.annotation.isLoaded()) {
 			this.backend.getFullAnnotation(imgStruct.annotationFullPath, imgStruct.id);
+		} else {
+			this._sendAnnoToRenderer(activeIdx);
 		}
-		
+	}
+
+	_sendAnnoToRenderer(idx) {
+		this.renderer.send('anno-loaded', idx, this.items[idx].annotation);
 	}
 
 	updateAnnoInst(inst) {

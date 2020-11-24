@@ -11,6 +11,8 @@
   "devDependencies": {
     "bootstrap": "^4.5.3",
     "electron": "^11.0.1",
-    "mdbootstrap": "^4.19.1"
+    "mdbootstrap": "^4.19.1",
+    "upng-js": "^2.1.0",
+    "zlib": "^1.0.5"
   }
 }

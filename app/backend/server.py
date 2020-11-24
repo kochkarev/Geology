@@ -60,7 +60,7 @@ def bbox(img, v):
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
     mask = img[rmin: rmax + 1, cmin: cmax + 1] // v
-    return int(rmin), int(cmin), mask
+    return int(rmin), int(cmin), mask.astype(np.uint8)
 
 
 def create_inst_anno(anno_path: str, id: int):
@@ -68,14 +68,14 @@ def create_inst_anno(anno_path: str, id: int):
     active_anno_img = np.array(Image.open(anno_path))[:, :, 0]
     send_string(f'annotation updated to {anno_path}, shape: {active_anno_img.shape}')
     inst_map = np.zeros(active_anno_img.shape[:2] + (3,), dtype=np.uint8)
-    iid = 0
+    iid = 1
     for ci in class_indices:
         class_anno = np.where(active_anno_img == ci, 1, 0)
         if np.max(class_anno > 0):
             labeled, n = label(class_anno)
             for i in range(1, n + 1):
                 r, c, mask = bbox(labeled, i)
-                send_array(mask, ext_type='inst', optional={'id': iid, 'class': 0, 'r': r, 'c': c, 'imgid': id})
+                send_array(mask, ext_type='inst', optional={'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id})
                 inst_map[labeled == i, :] = [iid % 256, iid // 256 % 256, iid // 256 //256]
                 iid += 1
     send_string(f'inst-map: {inst_map.shape}, {np.min(inst_map[:])}-{np.max(inst_map[:])}')
