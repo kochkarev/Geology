@@ -4,14 +4,14 @@ const UPNG = require('upng-js');
 
 class ActiveImageWithAnnotationRenderer {
 
-    constructor(img, canvClassAnnoTmp, canvInstAnnoTmp, canvClassAnno, canvInstAnno, colorMap) {
+    constructor(img, canvClassAnnoTmp, canvInstAnnoTmp, canvClassAnno, canvInstAnno, labelsMap) {
         this.imgElem = img;
         this.canvClassAnnoTmp = canvClassAnnoTmp;
         this.canvInstAnnoTmp = canvInstAnnoTmp;
         this.canvClassAnno = canvClassAnno;
         this.canvInstAnno = canvInstAnno;
 
-        this.colorMap = colorMap;
+        this.labelsMap = labelsMap;
 
         this.ctxClassAnnoTmp = this.canvClassAnnoTmp.getContext('2d');
         this.ctxInstAnnoTmp = this.canvInstAnnoTmp.getContext('2d');
@@ -53,7 +53,7 @@ class ActiveImageWithAnnotationRenderer {
         // transform mask to colorized annotation
         let mask = UPNG.decode(fs.readFileSync(imgStruct.maskPath));
         console.log(this.fw, this.fh, mask.width, mask.height);
-        this.classAnno = colorizeClassAnno(mask, this.colorMap, alpha=alpha);
+        this.classAnno = colorizeClassAnno(mask, this.labelsMap, alpha=alpha);
         // render to temporary canvas
         this.canvClassAnnoTmp.width = this.fw;
         this.canvClassAnnoTmp.height = this.fh;
@@ -89,7 +89,7 @@ class ActiveImageWithAnnotationRenderer {
         this.ctxInstAnnoTmp.clearRect(0, 0, this.fw, this.fh);
         if (inst) {
             if (!this.instColorized.has(inst.id)) {
-                this.instColorized.set(inst.id, colorizeInstMask(inst, this.colorMap, alpha));
+                this.instColorized.set(inst.id, colorizeInstMask(inst, this.labelsMap, alpha));
             }
             let colorized = this.instColorized.get(inst.id);
             this.ctxInstAnnoTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
@@ -138,21 +138,22 @@ class ActiveImageWithAnnotationRenderer {
 }
 
 
-function colorizeClassAnno(png, colors, alpha) {
+function colorizeClassAnno(png, labelsMap, alpha) {
     let anno = new Uint8ClampedArray(png.width * png.height * 4);
     for (i = 0; i < png.width * png.height; i++) {
         let v = png.data[3 * i];
-        anno[4 * i] = colors[v][0];
-        anno[4 * i + 1] = colors[v][1];
-        anno[4 * i + 2] = colors[v][2];
+        let color = labelsMap[v].color;
+        anno[4 * i] = color[0];
+        anno[4 * i + 1] = color[1];
+        anno[4 * i + 2] = color[2];
         if (v > 0)
             anno[4 * i + 3] = alpha;
     }
     return anno;    
 }
 
-function colorizeInstMask(inst, colors, alpha) {
-    let color = colors[inst.class];
+function colorizeInstMask(inst, labelsMap, alpha) {
+    const color = labelsMap[inst.class].color;
     let anno = new Uint8ClampedArray(inst.w * inst.h * 4);
     for (i = 0; i < inst.w * inst.h; i ++) {
         if (inst.mask[i] > 0) {

@@ -1,5 +1,6 @@
 const {ipcRenderer} = require('electron');
 
+const fs = require('fs');
 const {ShallowImageList} = require('./utils/structs_ui');
 const {ActiveImageWithAnnotationRenderer} = require('./utils/annotation_renderer');
 
@@ -8,21 +9,16 @@ const main_image_zone = document.getElementById('main-image-zone');
 
 let mouseDown = false;
 
-const annoColorsArr = [
-    [0, 0, 0],
-    [255, 255, 0],
-    [0, 255, 255],
-    [0, 255, 0],
-    [0, 0, 255],
-    [255, 0, 0],
-    [100, 255, 0],
-    [255, 100, 100],
-    [100, 255, 255],
-    [200, 50, 80],
-    [80, 50, 200],
-    [20, 120, 255],
-    [120, 20, 255],
-];
+
+function getLabelsDecoded(config='./config/labels.json') {
+    const jf = JSON.parse(fs.readFileSync(config));
+    let labelsDecoded = {};
+    for (const [label, className] of Object.entries(jf.LabelsToClasses)) {
+        const color = jf.ClassesToColors[className];
+        labelsDecoded[label] = {"name": className, "color": color};
+    }
+    return labelsDecoded;    
+}
 
 
 let R = new ActiveImageWithAnnotationRenderer(
@@ -31,7 +27,7 @@ let R = new ActiveImageWithAnnotationRenderer(
     document.getElementById('canv-inst-tmp'),
     document.getElementById('canv-class-anno'),
     document.getElementById('canv-inst-anno'),
-    annoColorsArr
+    getLabelsDecoded()
 );
 
 
