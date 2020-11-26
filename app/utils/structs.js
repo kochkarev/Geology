@@ -3,7 +3,8 @@ const fs = require('fs');
 
 
 class InstAnnotation {
-	constructor() {
+	constructor(imgId) {
+		this.imgId = imgId;
 		this.instMap = null;
 		this.instances = [];
 		this.loaded = false;
@@ -35,19 +36,20 @@ class ImageList {
     constructor(backend, renderer) {
         this.backend = backend
         this.renderer = renderer
-		this.items = [];
-		this.activeIdx = -1;
+		this.items = new Map();
+		this.activeId = -1;
     }
 
     addImage(fullFilePath) {
+		let imgId = this.items.size + 1;
         let imageItem = {
-			id: this.items.length + 1,
-            imageFullPath: fullFilePath,
+			id: imgId,
+            imagePath: fullFilePath,
             imageName: path.parse(fullFilePath).base,
-			annotationFullPath: this.getAnnoPath(fullFilePath),
-			annotation: new InstAnnotation()
+			instAnnoPath: this.getAnnoPath(fullFilePath),
+			instAnno: new InstAnnotation(imgId)
 		};
-        this.items.push(imageItem);
+        this.items.set(imgId, imageItem);
     }
 
     addImages(fullFilePaths) {
@@ -69,34 +71,34 @@ class ImageList {
 
 	onAnnotationLoaded(imgId) {
 		console.log(`inst annotation for image ${imgId} received!`);
-		let imgStruct = this.items[imgId - 1];
-		imgStruct.annotation.setLoaded();
-		if (imgId - 1 === this.activeIdx) {
+		let imgStruct = this.items.get(imgId);
+		imgStruct.instAnno.setLoaded();
+		if (imgStruct.id === this.activeId) {
 			this._sendAnnoToRenderer(imgStruct);
 		}
 	}
 
 	onActiveImageUpdate(id) {
-		this.activeIdx = id - 1;
-		console.log(`active image update: ${this.activeIdx}`);
-		let imgStruct = this.items[this.activeIdx];
-		if (!imgStruct.annotation.isLoaded()) {
-			this.backend.getInstAnno(imgStruct.annotationFullPath, imgStruct.id);
+		this.activeId = id;
+		console.log(`active image update: ${this.activeId}`);
+		let imgStruct = this.items.get(this.activeId);
+		if (!imgStruct.instAnno.isLoaded()) {
+			this.backend.getInstAnno(imgStruct.instAnnoPath, imgStruct.id);
 		} else {
 			this._sendAnnoToRenderer(imgStruct);
 		}
 	}
 
 	_sendAnnoToRenderer(imgStruct) {
-		this.renderer.send('anno-loaded', imgStruct.id, imgStruct.annotation);
+		this.renderer.send('anno-loaded', imgStruct.instAnno);
 	}
 
 	updateAnnoInst(inst) {
-		this.items[inst.imgid - 1].annotation.addInst(inst);
+		this.items.get(inst.imgid)?.instAnno.addInst(inst);
 	}
 
 	updateAnnoInstMap(instMap) {
-		this.items[instMap.imgid - 1].annotation.updateInstMap(instMap);
+		this.items.get(instMap.imgid)?.instAnno.updateInstMap(instMap);
 	}
 }
 

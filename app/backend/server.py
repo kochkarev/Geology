@@ -4,7 +4,7 @@ import sys
 
 import numpy as np
 from PIL import Image
-from scipy.ndimage import label
+from scipy.ndimage import label, generate_binary_structure
 
 
 active_anno_img: np.ndarray = None
@@ -59,26 +59,33 @@ def bbox(img, v):
     cols = np.any(img == v, axis=0)
     rmin, rmax = np.where(rows)[0][[0, -1]]
     cmin, cmax = np.where(cols)[0][[0, -1]]
-    mask = img[rmin: rmax + 1, cmin: cmax + 1] // v
+    mask = img[rmin: rmax + 1, cmin: cmax + 1]
+    mask = np.where(mask == v, 1, 0)
     return int(rmin), int(cmin), mask.astype(np.uint8)
 
 
-def create_inst_anno(anno_path: str, id: int):
+def create_inst_anno(anno_path: str, id: int, area_thresh=10):
     global active_anno_img
     active_anno_img = np.array(Image.open(anno_path))[:, :, 0]
+    # s_element = generate_binary_structure(2,2)
     send_string(f'annotation updated to {anno_path}, shape: {active_anno_img.shape}')
     inst_map = np.zeros(active_anno_img.shape[:2] + (3,), dtype=np.uint8)
     iid = 1
+    inst_dropped = 0
     for ci in class_indices:
         class_anno = np.where(active_anno_img == ci, 1, 0)
         if np.max(class_anno > 0):
             labeled, n = label(class_anno)
             for i in range(1, n + 1):
                 r, c, mask = bbox(labeled, i)
-                send_array(mask, ext_type='inst', optional={'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id})
+                mask_area = np.sum(mask)
+                if mask_area < area_thresh:
+                    inst_dropped += 1
+                    continue
+                send_array(mask, ext_type='inst', optional={'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id, 'area': str(mask_area)})
                 inst_map[labeled == i, :] = [iid % 256, iid // 256 % 256, iid // 256 //256]
                 iid += 1
-    send_string(f'inst-map: {inst_map.shape}, {np.min(inst_map[:])}-{np.max(inst_map[:])}')
+    send_string(f'inst-map: {inst_map.shape}, instances: {iid-1}, dropped: {inst_dropped}')
     send_array(inst_map, ext_type='inst-map', optional={'imgid': id})
     send_signal(f'A{id}')
 

@@ -19,7 +19,7 @@ function handlerArray(arr, header) {
 		if (header.ext == 'inst') {
 			let inst = {
 				'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0],
-				'class': header.class, 'imgid': header.imgid, 'mask': arr
+				'class': header.class, 'imgid': header.imgid, 'mask': arr, 'area': header.area
 			};
 			imageList.updateAnnoInst(inst);
 		} else if (header.ext == 'inst-map') {
@@ -125,7 +125,6 @@ function dialog_import_files() {
 			if (!res.canceled) {
 				imageList.addImages(res.filePaths);
 				win.webContents.send('files-added', res.filePaths);
-				// imageList.changeActiveImageIdx();
 			}
 		})
 		.catch( (e) =>
