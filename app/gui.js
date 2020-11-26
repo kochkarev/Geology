@@ -5,7 +5,7 @@ const {ShallowImageList} = require('./utils/structs_ui');
 const {ActiveImageWithAnnotationRenderer} = require('./utils/annotation_renderer');
 
 const canvClassAnno = document.getElementById('canv-class-anno');
-const main_image_zone = document.getElementById('main-image-zone');
+const mainImageZone = document.getElementById('main-image-zone');
 
 let mouseDown = false;
 
@@ -27,11 +27,13 @@ let R = new ActiveImageWithAnnotationRenderer(
     document.getElementById('canv-inst-tmp'),
     document.getElementById('canv-class-anno'),
     document.getElementById('canv-inst-anno'),
-    getLabelsDecoded()
+    document.getElementById('statistics-text'),
+    getLabelsDecoded(),
+    scaleCOeff=0.4
 );
 
 
-main_image_zone.addEventListener('mousemove', (e) => {
+mainImageZone.addEventListener('mousemove', (e) => {
     let rect = canvClassAnno.getBoundingClientRect();
     let x = e.clientX - rect.left;
     let y = e.clientY - rect.top;
