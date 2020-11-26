@@ -17,14 +17,6 @@ class InstAnnotation {
 		this.instMap = instMap;
 	}
 
-	// getInstByCoords(x, y) {
-	// 	if (!this.instMap) {
-	// 		return null;
-	// 	}
-	// 	let inst_id = this.instMap.data[y * this.instMap.h + x];
-	// 	return this.instances[inst_id];
-	// }
-
 	isEmpty() {
 		return this.instances.length === 0;
 	}
@@ -49,10 +41,10 @@ class ImageList {
 
     addImage(fullFilePath) {
         let imageItem = {
-			id: this.items.length,
+			id: this.items.length + 1,
             imageFullPath: fullFilePath,
             imageName: path.parse(fullFilePath).base,
-			annotationFullPath: this.readAnnotation(fullFilePath),
+			annotationFullPath: this.getAnnoPath(fullFilePath),
 			annotation: new InstAnnotation()
 		};
         this.items.push(imageItem);
@@ -65,7 +57,7 @@ class ImageList {
         console.log(this.items);
     }
 	
-	readAnnotation(imageFullPath) {
+	getAnnoPath(imageFullPath) {
 		let p = path.parse(imageFullPath);
 		let maskFullPath = path.join(p.dir, p.name + '_mask' + '.png');
 		try{
@@ -76,34 +68,35 @@ class ImageList {
 	}
 
 	onAnnotationLoaded(imgId) {
-		console.log(`annotation for image ${imgId} received!`);
-		this.items[imgId].annotation.setLoaded();
-		if (imgId == this.activeIdx) {
-			this._sendAnnoToRenderer(this.activeIdx);
+		console.log(`inst annotation for image ${imgId} received!`);
+		let imgStruct = this.items[imgId - 1];
+		imgStruct.annotation.setLoaded();
+		if (imgId - 1 === this.activeIdx) {
+			this._sendAnnoToRenderer(imgStruct);
 		}
 	}
 
-	onActiveImageUpdate(activeIdx) {
-		this.activeIdx = activeIdx;
-		console.log(`active image update: ${activeIdx}`);
-		let imgStruct = this.items[activeIdx];
+	onActiveImageUpdate(id) {
+		this.activeIdx = id - 1;
+		console.log(`active image update: ${this.activeIdx}`);
+		let imgStruct = this.items[this.activeIdx];
 		if (!imgStruct.annotation.isLoaded()) {
-			this.backend.getFullAnnotation(imgStruct.annotationFullPath, imgStruct.id);
+			this.backend.getInstAnno(imgStruct.annotationFullPath, imgStruct.id);
 		} else {
-			this._sendAnnoToRenderer(activeIdx);
+			this._sendAnnoToRenderer(imgStruct);
 		}
 	}
 
-	_sendAnnoToRenderer(idx) {
-		this.renderer.send('anno-loaded', idx, this.items[idx].annotation);
+	_sendAnnoToRenderer(imgStruct) {
+		this.renderer.send('anno-loaded', imgStruct.id, imgStruct.annotation);
 	}
 
 	updateAnnoInst(inst) {
-		this.items[inst.imgid].annotation.addInst(inst);
+		this.items[inst.imgid - 1].annotation.addInst(inst);
 	}
 
 	updateAnnoInstMap(instMap) {
-		this.items[instMap.imgid].annotation.updateInstMap(instMap);
+		this.items[instMap.imgid - 1].annotation.updateInstMap(instMap);
 	}
 }
 

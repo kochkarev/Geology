@@ -72,7 +72,7 @@ class BackendCommunicator {
 		this.proc.stdin.write(data);
 	}
 
-	getFullAnnotation(annotationFullPath, imageId) {
+	getInstAnno(annotationFullPath, imageId) {
 		this._sendJSON({'type': 'get-annotation', 'path': annotationFullPath, 'id': imageId});
 	}
 

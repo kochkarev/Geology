@@ -28,19 +28,20 @@ const annoColorsArr = [
 
 class ActiveImageWithAnnotationRenderer {
 
-    constructor(img, canvClassAnnoTmp, canvInstAnnoTmp, canvClassAnno, canvInstAnno) {
+    constructor(img, canvClassAnnoTmp, canvInstAnnoTmp, canvClassAnno, canvInstAnno, colorMap) {
         this.imgElem = img;
         this.canvClassAnnoTmp = canvClassAnnoTmp;
         this.canvInstAnnoTmp = canvInstAnnoTmp;
         this.canvClassAnno = canvClassAnno;
         this.canvInstAnno = canvInstAnno;
 
+        this.colorMap = colorMap;
+
         this.ctxClassAnnoTmp = this.canvClassAnnoTmp.getContext('2d');
         this.ctxInstAnnoTmp = this.canvInstAnnoTmp.getContext('2d');
         this.ctxClassAnno = this.canvClassAnno.getContext('2d');
         this.ctxInstAnno = this.canvInstAnno.getContext('2d');
         
-        this.activeIdx = null;
         this.imgStruct = null;
         this.classAnno = null;
         this.instAnno = null;
@@ -51,30 +52,31 @@ class ActiveImageWithAnnotationRenderer {
         this.fh = null;
         this.w = null;
         this.h = null;
+
+        this.inst_colorized = new Map();
     }
 
-    changeContext(imgStruct, idx) {
-        this.activeIdx = idx;
+    changeContext(imgStruct) {
         this.imgStruct = imgStruct;
         let _img = fs.readFileSync(imgStruct.filePath).toString('base64');
         this.imgElem.src = `data:image/jpg;base64,${_img}`;
         this.instAnno = null;
         this.prevInstId = null;
         this.clearInstAnno();
-        ipcRenderer.send('active-image-update', idx);    
+        ipcRenderer.send('active-image-update', imgStruct.id);    
         this.imgElem.onload = () => {
             this.recalcSize();
             this.renderImage();
-            this._loadClassAnno(imgStruct);
+            this.loadClassAnno(imgStruct);
             this.renderClassAnno();
         }
     }
 
-    _loadClassAnno(imgStruct, alpha=150) {
+    loadClassAnno(imgStruct, alpha=150) {
         // transform mask to colorized annotation
         let mask = UPNG.decode(fs.readFileSync(imgStruct.maskPath));
         console.log(this.fw, this.fh, mask.width, mask.height);
-        this.classAnno = colorizeClassAnno(mask, annoColorsArr, alpha=alpha);
+        this.classAnno = colorizeClassAnno(mask, this.colorMap, alpha=alpha);
         // render to temporary canvas
         this.canvClassAnnoTmp.width = this.fw;
         this.canvClassAnnoTmp.height = this.fh;
@@ -109,7 +111,10 @@ class ActiveImageWithAnnotationRenderer {
     prepareInstAnno(inst, alpha=255) {
         this.ctxInstAnnoTmp.clearRect(0, 0, this.fw, this.fh);
         if (inst) {
-            let colorized = colorizeInstMask(inst, annoColorsArr, alpha);
+            if (!this.inst_colorized.has(inst.id)) {
+                this.inst_colorized.set(inst.id, colorizeInstMask(inst, this.colorMap, alpha));
+            }
+            let colorized = this.inst_colorized.get(inst.id);
             this.ctxInstAnnoTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
         }
     }
@@ -132,8 +137,8 @@ class ActiveImageWithAnnotationRenderer {
         this.renderInstAnno();
     }
 
-    instAnnoUpdateFromMain(idx, anno) {
-        if (idx !== this.activeIdx)
+    instAnnoUpdateFromMain(structId, anno) {
+        if (structId !== this.imgStruct.id)
             return;
         this.instAnno = anno;
         this.canvInstAnnoTmp.width = this.fw;
@@ -162,6 +167,7 @@ let R = new ActiveImageWithAnnotationRenderer(
     document.getElementById('canv-inst-tmp'),
     document.getElementById('canv-class-anno'),
     document.getElementById('canv-inst-anno'),
+    annoColorsArr
 );
 
 
@@ -179,9 +185,7 @@ main_image_zone.addEventListener('mousemove', (e) => {
 
 let imgStructs = new ShallowImageList(
     document.getElementById('files-list'),
-    (struct, index) => {
-        R.changeContext(struct, index);
-    }
+    (struct) => R.changeContext(struct)
 );
 
 document.addEventListener('keydown', (e) => {
@@ -201,9 +205,9 @@ ipcRenderer.on('files-added', (e, data) => {
     imgStructs.addFiles(data);
 });
 
-ipcRenderer.on('anno-loaded', (event, idx, anno) => {
-    console.log(`Hey! Got instance annotation update ${idx}`);
-    R.instAnnoUpdateFromMain(idx, anno);
+ipcRenderer.on('anno-loaded', (event, id, anno) => {
+    console.log(`Hey! Got instance annotation update ${id}`);
+    R.instAnnoUpdateFromMain(id, anno);
 });
 
 function colorizeClassAnno(png, colors, alpha) {

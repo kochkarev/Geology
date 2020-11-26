@@ -59,28 +59,14 @@ app.on('ready', () => {
 			(str) => handlerString(str)
 		);
 		imageList = new ImageList(backend, win.webContents);
-
-
-		// backend.ping();
-		// backend.pingImage();
-
-		// ipcMain.on('stop-algo', (event, arg) => backend.stop_algo());
-		// // ipcMain.on('btn_req_click', (event, arg) => backend.ping_image());
-		// ipcMain.on('anno', (event, args) => backend.send_annotation(args[0], args[1]));
-		// ipcMain.on('mouse-move', (event, args) => mouseHandler.mouseMoveUpdate(args[0], args[1]));
 	});
 
-	// ipcMain.on('stop-algo', (event, arg) => backend.stop_algo());
-	// ipcMain.on('btn_req_click', (event, arg) => backend.ping_image());
-    // ipcMain.on('anno', (event, args) => backend.send_annotation(args[0], args[1]));
 	ipcMain.on('active-image-update', (event, args) => imageList.onActiveImageUpdate(args));
-	// ipcMain.on('mouse-move', (event, args) => annoController.onMouseMove(args[0], args[1]));
 
 	const mainMenu = Menu.buildFromTemplate(menuTemplate);
 	Menu.setApplicationMenu(mainMenu);
 
-	win.webContents.openDevTools();    
-	
+	win.webContents.openDevTools();    	
 	
 })
 
