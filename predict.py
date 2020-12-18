@@ -30,24 +30,10 @@ class Prediction:
         weights = np.zeros((batch_size, patch_size, patch_size, 4), dtype=np.float32)
         for cls_num in classes_weights:
             weights[...,cls_num] = np.full((patch_size, patch_size), classes_weights[cls_num], dtype=np.float32)
+            
         custom_loss = functools.partial(losses.weighted_dice_loss, weights=weights)
         custom_loss.__name__ = 'weighted_dice_loss'
-        
-        # self.model = custom_unet(
-        #     (patch_size, patch_size, 3),
-        #     n_classes=n_classes,
-        #     filters=n_filters,
-        #     use_batch_norm=True,
-        #     n_layers=n_layers,
-        #     output_activation='softmax'
-        # )
-        # self.model.compile(
-        #     optimizer=Adam(), 
-        #     loss = custom_loss,
-        #     metrics=[iou]
-        # )
         custom_objects={"iou":iou, "weighted_dice_loss":custom_loss}
-        # self.model.load_weights(model_path)
 
         self.model = load_model(model_path, custom_objects=custom_objects)
 
@@ -123,18 +109,6 @@ if __name__ == "__main__":
 
     # unmarked = get_unmarked_images(os.path.join("input", "UMNIK_2019", "BoxA_DS1", "img"), os.path.join("input", "dataset"))
     unmarked = [f"/home/akochkarev/geology/test_img1/{i+1}.jpg" for i in range(4)]
-    # unmarked += ["/Users/a17641623/Documents/Geology/test_img/5.png"]
-    # unmarked = [
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL26.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Sh-GL49.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Sh-BR-Gl47.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Sh-GL21.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL3.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-29.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-GL30.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-GL31.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-28.jpg",
-    #     "/home/akochkarev/geology/input/dataset/Py-Cpy-Sh-BR-GL27.jpg"
-    # ]
+
     print(unmarked)
     pred.predict(unmarked)
