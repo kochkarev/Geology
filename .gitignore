@@ -11,4 +11,5 @@ models
 *.log
 train_params.json
 app/node_modules/
+app/backend/models/
 *.code-workspace
