@@ -10,14 +10,15 @@
 		<button type="button" class="btn btn-primary btn-sm" id="btn_predict">predict</button>
 		<!-- <button type="button" class="btn btn-primary btn-sm" id="btn_stop">stop</button> -->
 	</div>
-	<div class="btn-toolbar" id="tools-selector-algo">
-		<select class="custom-select custom-select-sm" id='selector-algo'>
-			<option value="1">Texture features</option>
-			<option value="2">CNN features</option>
-			<option value="3">CNN features + dist</option>
+	<div class="btn-toolbar" id="tools-selector-vis">
+		<select class="custom-select custom-select-sm" id='selector-vis'>
+			<option value="SRC">Source</option>
+			<option value="GT">Ground Truth</option>
+			<option value="PR">Prediction</option>
+			<option value="ERR">Error Map</option>
 		  </select>
 	</div>
-	<div class="btn-toolbar" id="tools-selector-anno">
+	<!-- <div class="btn-toolbar" id="tools-selector-anno">
 		<div class="custom-control custom-radio custom-control-inline">
 			<input type="radio" class="custom-control-input" id="r1" name="classSelector" value="object" checked>
 			<label class="custom-control-label" for="r1">object</label>
@@ -26,17 +27,17 @@
 			<input type="radio" class="custom-control-input" id="r2" name="classSelector" value="background">
 			<label class="custom-control-label" for="r2">background</label>
 		</div>
-	</div>
+	</div> -->
 
 	<div style="display: none;">
-		<canvas id="canv-anno-tmp"></canvas>
-		<canvas id="canv-inst-tmp"></canvas>
+		<canvas id="canv-tmp-sem"></canvas>
+		<canvas id="canv-tmp-inst"></canvas>
 	</div>
 
 	<div class="image-zone scrollbar-primary square thin" id='main-image-zone'>
 		<img src="https://mdbootstrap.com/img/Photos/Others/food3.jpg" style="z-index: 0;" id="img"/>
-		<canvas id="canv-class-anno" width="500", height="500", style="position: absolute; top: 0; left: 0; opacity: 0.5; z-index: 1"></canvas>
-		<canvas id="canv-inst-anno" width="500", height="500", style="position: absolute; top: 0; left: 0; opacity: 0.5; z-index: 2"></canvas>
+		<canvas id="canv-anno-sem" width="500", height="500", style="position: absolute; top: 0; left: 0; opacity: 0.5; z-index: 1"></canvas>
+		<canvas id="canv-anno-inst" width="500", height="500", style="position: absolute; top: 0; left: 0; opacity: 0.5; z-index: 2"></canvas>
 	</div>
 
 	<div class="side-panel">

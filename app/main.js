@@ -129,7 +129,7 @@ function dialog_import_files() {
 		.then(res => {
 			if (!res.canceled) {
 				imageList.addImages(res.filePaths);
-				win.webContents.send('files-added', res.filePaths);
+				win.webContents.send('images-added', imageList.items);
 			}
 		})
 		.catch( (e) =>

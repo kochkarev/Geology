@@ -1,13 +1,12 @@
 const {ipcRenderer} = require('electron');
 
 const fs = require('fs');
-const {ShallowImageList} = require('./utils/structs_ui');
+const {ImageListWrapper} = require('./utils/structs_ui');
 const {ActiveImageWithAnnotationRenderer} = require('./utils/annotation_renderer');
 
-const canvClassAnno = document.getElementById('canv-class-anno');
+const canvClassAnno = document.getElementById('canv-anno-sem');
 const mainImageZone = document.getElementById('main-image-zone');
-
-let mouseDown = false;
+const visSelector = document.getElementById('selector-vis');
 
 
 function getLabelsDecoded(config='./config/labels.json') {
@@ -23,13 +22,13 @@ function getLabelsDecoded(config='./config/labels.json') {
 
 let R = new ActiveImageWithAnnotationRenderer(
     document.getElementById('img'),
-    document.getElementById('canv-anno-tmp'),
-    document.getElementById('canv-inst-tmp'),
-    document.getElementById('canv-class-anno'),
-    document.getElementById('canv-inst-anno'),
+    document.getElementById('canv-tmp-sem'),
+    document.getElementById('canv-tmp-inst'),
+    document.getElementById('canv-anno-sem'),
+    document.getElementById('canv-anno-inst'),
     document.getElementById('statistics-text'),
     getLabelsDecoded(),
-    scaleCOeff=0.4
+    scaleCoeff=0.4
 );
 
 
@@ -37,37 +36,36 @@ mainImageZone.addEventListener('mousemove', (e) => {
     let rect = canvClassAnno.getBoundingClientRect();
     let x = e.clientX - rect.left;
     let y = e.clientY - rect.top;
-    if (mouseDown) {
-    }
-    else {
-        R.cursorMove(x, y);
-    }
+    R.cursorMove(x, y);
 });
 
-let imgStructs = new ShallowImageList(
+visSelector.addEventListener('change', (e) => {
+    console.log(e.target.value);
+});
+
+let imgList = new ImageListWrapper(
     document.getElementById('files-list'),
     (struct) => R.changeContext(struct)
 );
 
 document.addEventListener('keydown', (e) => {
     if (e.code === 'ArrowDown' || e.code === 'ArrowUp')
-        imgStructs.moveSelection(e.code);
+        imgList.moveSelection(e.code);
     else if (e.code === 'BracketLeft' || e.code === 'BracketRight')
         R.changeScale(e.code);    
 });
 
-imgStructs.listGroupHTML.addEventListener('click', e => imgStructs.selectClick(e));
+imgList.listGroupHTML.addEventListener('click', e => imgList.selectClick(e));
 
 document.getElementById('btn_load').addEventListener('click', () => ipcRenderer.send('load-model'));
 document.getElementById('btn_predict').addEventListener('click', () => ipcRenderer.send('predict'));
 // document.getElementById('btn_stop').addEventListener('click', () => ipcRenderer.send('stop-algo'));
 
-ipcRenderer.on('files-added', (e, data) => {
-    imgStructs.addFiles(data);
+ipcRenderer.on('images-added', (e, items) => {
+    imgList.addMany(items);
 });
 
 ipcRenderer.on('anno-loaded', (event, anno) => {
-    console.log(`Hey! Got instance annotation update ${anno.imgId}`);
-    R.instAnnoUpdateFromMain(anno);
+    R.annoInstUpdateFromMain(anno);
 });
 

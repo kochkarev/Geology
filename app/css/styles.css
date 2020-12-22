@@ -46,9 +46,9 @@ html, body {
     max-height: 3em;
 }
 
-#tools-selector-algo {
+#tools-selector-vis {
     position: absolute;
-    width: 40%;
+    width: 70%;
     background-color: gainsboro;
     top: 0;
     left: 30%;
@@ -59,7 +59,7 @@ html, body {
 }
 
 
-#tools-selector-anno {
+/* #tools-selector-anno {
     position: absolute;
     width: 30%;
     background-color: gainsboro;
@@ -68,7 +68,7 @@ html, body {
     height: 3em;
     padding-top: 0.75em;
     vertical-align: middle;
-}
+} */
 
 .image-zone {
     position: absolute;

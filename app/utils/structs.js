@@ -1,5 +1,6 @@
 const path = require('path');
 const fs = require('fs');
+const UPNG = require('upng-js');
 
 
 class InstAnnotation {
@@ -35,15 +36,27 @@ class ImageItem {
 
 	constructor(id, fullFilePath) {
 		this.id = id;
+		this.w = 0;
+		this.h = 0;
 	
 		this.imagePath = fullFilePath;
 		this.imageName = path.parse(fullFilePath).base,
-		this.instAnnoPath = this.getAnnoPath(fullFilePath),
+		this.maskPath = this.getAnnoPath(fullFilePath),
 	
 		this.annoSemanticGT = null;
 		this.annoInstGT = new InstAnnotation(id);
 		this.annoSemanticPR = null;
 		this.annoInstPR = new InstAnnotation(id);
+
+		this._loadMask(this.maskPath);
+	
+	}
+
+	_loadMask(maskPath) {
+		let mask = UPNG.decode(fs.readFileSync(maskPath));
+		this.w = mask.width;
+		this.h = mask.height;
+		this.annoSemanticGT = mask.data;
 	}
 
 	getAnnoPath(imageFullPath) {
@@ -122,7 +135,7 @@ class ImageList {
 		console.log(`active image update: ${this.activeId}`);
 		let imgStruct = this.items.get(this.activeId);
 		if (!imgStruct.annoInstGT.isLoaded()) {
-			this.backend.getInstAnno(imgStruct.instAnnoPath, imgStruct.id, 'GT');
+			this.backend.getInstAnno(imgStruct.maskPath, imgStruct.id, 'GT');
 		} else {
 			this._sendAnnoToRenderer(imgStruct);
 		}
@@ -130,6 +143,7 @@ class ImageList {
 
 	_sendAnnoToRenderer(imgStruct) {
 		this.renderer.send('anno-loaded', imgStruct.annoInstGT);
+		this.renderer.send('upd', imgStruct);
 	}
 
 	updateAnnoInst(inst) {

@@ -4,26 +4,26 @@ const UPNG = require('upng-js');
 
 class ActiveImageWithAnnotationRenderer {
 
-    constructor(img, canvClassAnnoTmp, canvInstAnnoTmp, canvClassAnno, canvInstAnno, statisticsTextElem, labelsMap, scaleCoeff) {
+    constructor(img, canvAnnoSemTmp, canvAnnoInstTmp, canvClassAnno, canvInstAnno, statisticsTextElem, labelsMap, scaleCoeff) {
         this.imgElem = img;
-        this.canvClassAnnoTmp = canvClassAnnoTmp;
-        this.canvInstAnnoTmp = canvInstAnnoTmp;
-        this.canvClassAnno = canvClassAnno;
-        this.canvInstAnno = canvInstAnno;
+        this.canvAnnoSemTmp = canvAnnoSemTmp;
+        this.canvAnnoInstTmp = canvAnnoInstTmp;
+        this.canvAnnoSem = canvClassAnno;
+        this.canvAnnoInst = canvInstAnno;
         this.statisticsTextElem = statisticsTextElem;
 
         this.labelsMap = labelsMap;
         this.scaleCoeff = scaleCoeff;
 
-        this.ctxClassAnnoTmp = this.canvClassAnnoTmp.getContext('2d');
-        this.ctxInstAnnoTmp = this.canvInstAnnoTmp.getContext('2d');
-        this.ctxClassAnno = this.canvClassAnno.getContext('2d');
-        this.ctxInstAnno = this.canvInstAnno.getContext('2d');
+        this.ctxAnnoSemTmp = this.canvAnnoSemTmp.getContext('2d');
+        this.ctxAnnoInstTmp = this.canvAnnoInstTmp.getContext('2d');
+        this.ctxAnnoSem = this.canvAnnoSem.getContext('2d');
+        this.ctxAnnoInst = this.canvAnnoInst.getContext('2d');
         
         this.imgStruct = null;
         this.classAnno = null;
-        this.classAnnoColorized = null;
-        this.instAnno = null;
+        this.annoSemColorized = null;
+        this.annoInst = null;
         this.prevInstId = null;
         this.scale = 1;
 
@@ -37,31 +37,35 @@ class ActiveImageWithAnnotationRenderer {
 
     changeContext(imgStruct) {
         this.imgStruct = imgStruct;
-        let _img = fs.readFileSync(imgStruct.filePath).toString('base64');
+        let _img = fs.readFileSync(imgStruct.imagePath).toString('base64');
         this.imgElem.src = `data:image/jpg;base64,${_img}`;
         this.classAnno = null;
-        this.classAnnoColorized = null;
-        this.instAnno = null;
+        this.annoSemColorized = null;
+        this.annoInst = null;
         this.prevInstId = null;
-        this.clearInstAnno();
+        this.clearAnnoInst();
         this.instColorized.clear();
         ipcRenderer.send('active-image-update', imgStruct.id);    
         this.imgElem.onload = () => {
             this.recalcSize();
             this.renderImage();
-            this.loadClassAnno(imgStruct);
-            this.renderClassAnno();
+            this.loadAnnoSem(imgStruct);
+            this.renderAnnoSem();
         }
     }
 
-    loadClassAnno(imgStruct, alpha=150) {
+    loadAnnoSem(imgStruct, alpha=150) {
         // transform mask to colorized annotation
         this.classAnno = UPNG.decode(fs.readFileSync(imgStruct.maskPath));
-        this.classAnnoColorized = colorizeClassAnno(this.classAnno, this.labelsMap, alpha=alpha);
+        this.annoSemColorized = colorizeAnnoSem(this.classAnno, this.labelsMap, alpha=alpha);
         // render to temporary canvas
-        this.canvClassAnnoTmp.width = this.fw;
-        this.canvClassAnnoTmp.height = this.fh;
-        this.ctxClassAnnoTmp.putImageData(new ImageData(this.classAnnoColorized, this.fw, this.fh), 0, 0);
+        this.canvAnnoSemTmp.width = this.fw;
+        this.canvAnnoSemTmp.height = this.fh;
+        this.ctxAnnoSemTmp.putImageData(new ImageData(this.annoSemColorized, this.fw, this.fh), 0, 0);
+    }
+
+    loadAnnoSem2(imgStruct, alphs=150) {
+
     }
 
     recalcSize() {
@@ -76,33 +80,33 @@ class ActiveImageWithAnnotationRenderer {
         this.imgElem.height = this.h;
     }
 
-    renderClassAnno() {
-        this.canvClassAnno.width = this.w;
-        this.canvClassAnno.height = this.h;
-        this.ctxClassAnno.clearRect(0, 0, this.w, this.h);
-        this.ctxClassAnno.drawImage(this.canvClassAnnoTmp, 0, 0, this.w, this.h);
+    renderAnnoSem() {
+        this.canvAnnoSem.width = this.w;
+        this.canvAnnoSem.height = this.h;
+        this.ctxAnnoSem.clearRect(0, 0, this.w, this.h);
+        this.ctxAnnoSem.drawImage(this.canvAnnoSemTmp, 0, 0, this.w, this.h);
     }
 
-    clearInstAnno() {
-        this.canvInstAnno.width = this.w;
-        this.canvInstAnno.height = this.h;
-        this.ctxInstAnno.clearRect(0, 0, this.w, this.h);
+    clearAnnoInst() {
+        this.canvAnnoInst.width = this.w;
+        this.canvAnnoInst.height = this.h;
+        this.ctxAnnoInst.clearRect(0, 0, this.w, this.h);
     }
 
-    prepareInstAnno(inst, alpha=255) {
-        this.ctxInstAnnoTmp.clearRect(0, 0, this.fw, this.fh);
+    prepareAnnoInst(inst, alpha=255) {
+        this.ctxAnnoInstTmp.clearRect(0, 0, this.fw, this.fh);
         if (inst) {
             if (!this.instColorized.has(inst.id)) {
-                this.instColorized.set(inst.id, colorizeInstMask(inst, this.labelsMap, alpha));
+                this.instColorized.set(inst.id, colorizeAnnoInst(inst, this.labelsMap, alpha));
             }
             let colorized = this.instColorized.get(inst.id);
-            this.ctxInstAnnoTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
+            this.ctxAnnoInstTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
         }
     }
 
-    renderInstAnno() {
-        this.clearInstAnno()
-        this.ctxInstAnno.drawImage(this.canvInstAnnoTmp, 0, 0, this.w, this.h);                   
+    renderAnnoInst() {
+        this.clearAnnoInst()
+        this.ctxAnnoInst.drawImage(this.canvAnnoInstTmp, 0, 0, this.w, this.h);                   
     }
 
     changeScale(code, step=0.1) {
@@ -114,33 +118,33 @@ class ActiveImageWithAnnotationRenderer {
         }
         this.recalcSize();
         this.renderImage();
-        this.renderClassAnno();
-        this.renderInstAnno();
+        this.renderAnnoSem();
+        this.renderAnnoInst();
     }
 
-    instAnnoUpdateFromMain(anno) {
+    annoInstUpdateFromMain(anno) {
         if (anno.imgId !== this.imgStruct.id)
             return;
-        this.instAnno = anno;
-        this.canvInstAnnoTmp.width = this.fw;
-        this.canvInstAnnoTmp.height = this.fh;    
+        this.annoInst = anno;
+        this.canvAnnoInstTmp.width = this.fw;
+        this.canvAnnoInstTmp.height = this.fh;    
     }
 
     cursorMove(x, y) {
         let xs = Math.round(x / this.scale);
         let ys = Math.round(y / this.scale);
 
-        if (!this.instAnno && this.classAnno) {
+        if (!this.annoInst && this.classAnno) {
             let classLabel = getClassLabel(this.classAnno, this.labelsMap, xs, ys);
             this.statisticsTextElem.innerHTML = `class: ${classLabel}`;
         }
 
-        if (this.instAnno?.instMap) {
-            let instId = this.instAnno.instMap.data[(ys * this.instAnno.instMap.w + xs) * 3];
+        if (this.annoInst?.instMap) {
+            let instId = this.annoInst.instMap.data[(ys * this.annoInst.instMap.w + xs) * 3];
             if (instId !== this.prevInstId) {
-                let inst = this.instAnno.instances[instId - 1];
-                this.prepareInstAnno(inst);
-                this.renderInstAnno();
+                let inst = this.annoInst.instances[instId - 1];
+                this.prepareAnnoInst(inst);
+                this.renderAnnoInst();
                 this.prevInstId;
                 if (inst) {
                     let areaM = Math.round(inst.area * this.scaleCoeff * this.scaleCoeff);
@@ -162,7 +166,7 @@ function getClassLabel(pngMask, labelsMap, x, y) {
     return labelsMap[n].name;
 }
 
-function colorizeClassAnno(png, labelsMap, alpha) {
+function colorizeAnnoSem(png, labelsMap, alpha) {
     let anno = new Uint8ClampedArray(png.width * png.height * 4);
     for (i = 0; i < png.width * png.height; i++) {
         let v = png.data[3 * i];
@@ -176,7 +180,7 @@ function colorizeClassAnno(png, labelsMap, alpha) {
     return anno;    
 }
 
-function colorizeInstMask(inst, labelsMap, alpha) {
+function colorizeAnnoInst(inst, labelsMap, alpha) {
     const color = labelsMap[inst.class].color;
     let anno = new Uint8ClampedArray(inst.w * inst.h * 4);
     for (i = 0; i < inst.w * inst.h; i ++) {

@@ -1,19 +1,14 @@
-const path = window.require('path');
-
-class ShallowImgStruct {
-    constructor(id, filePath, maskPath) {
-        this.id = id;
-        this.filePath = filePath;
-        this.fileName = path.parse(filePath).base;
-        this.maskPath = maskPath;
+class ImgStructWrapper {
+    constructor(imgStruct) {
+        this.imgStruct = imgStruct;
         let li = document.createElement('li');
         li.className = "list-group-item";
-        li.innerHTML = this.fileName;
+        li.innerHTML = imgStruct.imageName;
         this.li = li;
     }
 }
 
-class ShallowImageList {
+class ImageListWrapper {
     
     constructor(listGroupHTML, updateImageCallBack) {
         this.items = [];
@@ -23,21 +18,18 @@ class ShallowImageList {
         this.updateImageCallBack = updateImageCallBack;
     }
 
-    addFile(filePath, maskPath) {
-        let newId = this.items.length + 1;
-        let imgStruct = new ShallowImgStruct(newId, filePath, maskPath);
-        this.items.push(imgStruct);
-        this.listGroupHTML.append(imgStruct.li);
+    add(imgStruct) {
+        let wrapper = new ImgStructWrapper(imgStruct);
+        this.items.push(wrapper);
+        this.listGroupHTML.append(wrapper.li);
         if (this.items.length === 1) {
             this.selectByIndex(0);
         }
     }
 
-    addFiles(filePaths) {
-        for (let filePath of filePaths) {
-            let p = path.parse(filePath);
-            let maskPath = path.join(p.dir, p.name + '_mask' + '.png');            
-            this.addFile(filePath, maskPath);
+    addMany(imgStructs) {
+        for (const [key, imgStruct] of imgStructs.entries()) {
+            this.add(imgStruct);
         }
     }
 
@@ -66,8 +58,8 @@ class ShallowImageList {
         this.activeIdx = newIndex;
         this.listGroupHTML.children[this.activeIdxPrev].classList.remove('active');
         this.listGroupHTML.children[this.activeIdx].classList.add('active');
-        this.updateImageCallBack(this.items[this.activeIdx]);
+        this.updateImageCallBack(this.items[this.activeIdx].imgStruct);
     }
 };
 
-module.exports = {ShallowImgStruct: ShallowImgStruct, ShallowImageList: ShallowImageList};
+module.exports = {ImgStructWrapper: ImgStructWrapper, ImageListWrapper: ImageListWrapper};
