@@ -19,12 +19,12 @@ function handlerArray(arr, header) {
 	if ('ext' in header) {
 		if (header.ext == 'inst') {
 			let inst = {
-				'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0],
+				'src': header.src, 'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0],
 				'class': header.class, 'imgid': header.imgid, 'mask': arr, 'area': header.area
 			};
 			imageList.updateAnnoInst(inst);
 		} else if (header.ext == 'inst-map') {
-			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr};
+			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr, 'src': header.src};
 			imageList.updateAnnoInstMap(instMap);
 		}
 	} else {
@@ -35,8 +35,10 @@ function handlerArray(arr, header) {
 function handlerSignal(s) {
 	if (s.startsWith('A')) {
 		let imgId = parseInt(s.slice(1));
-		// console.log(`annotation for image ${imgId} received!`);
-		imageList.onAnnotationLoaded(imgId);
+		imageList.onAnnotationLoaded(imgId, 'GT');
+	} else if (s.startsWith('B')) {
+		let imgId = parseInt(s.slice(1));
+		imageList.onAnnotationLoaded(imgId, 'PR');
 	}
 }
 

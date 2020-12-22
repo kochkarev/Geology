@@ -31,6 +31,55 @@ class InstAnnotation {
 	}
 }
 
+class ImageItem {
+
+	constructor(id, fullFilePath) {
+		this.id = id;
+	
+		this.imagePath = fullFilePath;
+		this.imageName = path.parse(fullFilePath).base,
+		this.instAnnoPath = this.getAnnoPath(fullFilePath),
+	
+		this.annoSemanticGT = null;
+		this.annoInstGT = new InstAnnotation(id);
+		this.annoSemanticPR = null;
+		this.annoInstPR = new InstAnnotation(id);
+	}
+
+	getAnnoPath(imageFullPath) {
+		let p = path.parse(imageFullPath);
+		let maskFullPath = path.join(p.dir, p.name + '_mask' + '.png');
+		try {
+			return fs.existsSync(maskFullPath) ? maskFullPath : null;
+		} catch (e) {
+			return null;
+		}
+	}
+
+	updateAnnoInst(inst) {
+		switch (inst.src) {
+			case 'GT':
+				this.annoInstGT.addInst(inst);
+				break;
+			case 'PR':
+				this.annoInstPR.addInst(inst);
+				break;
+		}
+	}
+
+	updateAnnoInstMap(instMap) {
+		switch (instMap.src) {
+			case 'GT':
+				this.annoInstGT.updateInstMap(instMap);
+				break;
+			case 'PR':
+				this.annoInstPR.updateInstMap(instMap);
+				break;
+		}
+	}
+
+}
+
 class ImageList {
     
     constructor(backend, renderer) {
@@ -41,39 +90,28 @@ class ImageList {
     }
 
     addImage(fullFilePath) {
-		let imgId = this.items.size + 1;
-        let imageItem = {
-			id: imgId,
-            imagePath: fullFilePath,
-            imageName: path.parse(fullFilePath).base,
-			instAnnoPath: this.getAnnoPath(fullFilePath),
-			instAnno: new InstAnnotation(imgId),
-			prediction: null
-		};
-        this.items.set(imgId, imageItem);
+		let id = this.items.size + 1;
+		let item = new ImageItem(id, fullFilePath);
+        this.items.set(id, item);
     }
 
     addImages(fullFilePaths) {
         for (let fullFilePath of fullFilePaths) {
             this.addImage(fullFilePath)
         }
-        console.log(this.items);
     }
 	
-	getAnnoPath(imageFullPath) {
-		let p = path.parse(imageFullPath);
-		let maskFullPath = path.join(p.dir, p.name + '_mask' + '.png');
-		try{
-			return fs.existsSync(maskFullPath) ? maskFullPath : null;
-		} catch (e) {
-			return null;
-		}
-	}
-
-	onAnnotationLoaded(imgId) {
-		console.log(`inst annotation for image ${imgId} received!`);
+	onAnnotationLoaded(imgId, source) {
+		console.log(`inst annotation for image ${imgId} from ${source} received!`);
 		let imgStruct = this.items.get(imgId);
-		imgStruct.instAnno.setLoaded();
+		switch (source) {
+			case 'GT':
+				imgStruct.annoInstGT.setLoaded();
+				break;
+			case 'PR':
+				imgStruct.annoInstPR.setLoaded();
+				break;
+		}
 		if (imgStruct.id === this.activeId) {
 			this._sendAnnoToRenderer(imgStruct);
 		}
@@ -83,23 +121,23 @@ class ImageList {
 		this.activeId = id;
 		console.log(`active image update: ${this.activeId}`);
 		let imgStruct = this.items.get(this.activeId);
-		if (!imgStruct.instAnno.isLoaded()) {
-			this.backend.getInstAnno(imgStruct.instAnnoPath, imgStruct.id);
+		if (!imgStruct.annoInstGT.isLoaded()) {
+			this.backend.getInstAnno(imgStruct.instAnnoPath, imgStruct.id, 'GT');
 		} else {
 			this._sendAnnoToRenderer(imgStruct);
 		}
 	}
 
 	_sendAnnoToRenderer(imgStruct) {
-		this.renderer.send('anno-loaded', imgStruct.instAnno);
+		this.renderer.send('anno-loaded', imgStruct.annoInstGT);
 	}
 
 	updateAnnoInst(inst) {
-		this.items.get(inst.imgid)?.instAnno.addInst(inst);
+		this.items.get(inst.imgid)?.updateAnnoInst(inst);
 	}
 
 	updateAnnoInstMap(instMap) {
-		this.items.get(instMap.imgid)?.instAnno.updateInstMap(instMap);
+		this.items.get(instMap.imgid)?.updateAnnoInstMap(instMap);
 	}
 
 	predict() {

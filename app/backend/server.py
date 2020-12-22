@@ -70,7 +70,7 @@ class Server:
         print()
         sys.stdout.flush()
 
-    def create_inst_anno(self, anno_path: str, id: int, area_thresh=10):
+    def create_inst_anno(self, anno_path: str, id: int, source: str, area_thresh=10):
         self.active_anno_img = np.array(Image.open(anno_path))[:, :, 0]
         self.send_string(f'annotation updated to {anno_path}, shape: {self.active_anno_img.shape}')
         inst_map = np.zeros(self.active_anno_img.shape[:2] + (3,), dtype=np.uint8)
@@ -86,12 +86,16 @@ class Server:
                     if mask_area < area_thresh:
                         inst_dropped += 1
                         continue
-                    self.send_array(mask, ext_type='inst',optional={'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id, 'area': str(mask_area)})
+                    meta = {'src': source, 'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id, 'area': str(mask_area)}
+                    self.send_array(mask, ext_type='inst', optional=meta)
                     inst_map[labeled == i, :] = [iid % 256, iid // 256 % 256, iid // 256 //256]
                     iid += 1
-        self.send_string(f'inst-map: {inst_map.shape}, instances: {iid-1}, dropped: {inst_dropped}')
-        self.send_array(inst_map, ext_type='inst-map', optional={'imgid': id})
-        self.send_signal(f'A{id}')
+        self.send_string(f'inst-map: {inst_map.shape}, instances: {iid-1}, dropped: {inst_dropped}, src: {source}')
+        self.send_array(inst_map, ext_type='inst-map', optional={'src': source, 'imgid': id})
+        if (source == 'GT'):
+            self.send_signal(f'A{id}')
+        elif (source == 'PR'):
+            self.send_signal(f'B{id}')
 
     def load_model(self, name):
         model_path = Path('.\\backend\\models') / (name + '.hdf5')
@@ -148,7 +152,7 @@ class Server:
             elif command == 'image-predict':
                 self.predict(msg['path'], int(msg['id']))
             elif command == 'get-annotation':
-                self.create_inst_anno(msg['path'], int(msg['id']))
+                self.create_inst_anno(msg['path'], int(msg['id']), msg['src'])
             elif command == 'shutdown':
                 break
 
