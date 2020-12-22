@@ -1,5 +1,5 @@
 import numpy as np
-from tensorflow.keras.models import load_model
+import tensorflow as tf
 from utils import combine_patches, split_to_patches
 from PIL import Image
 
@@ -7,7 +7,7 @@ from PIL import Image
 class Model:
 
     def __init__(self, model_path, patch_size, batch_size, offset):
-        self.model = load_model(model_path, compile=False)
+        self.model = tf.keras.models.load_model(model_path, compile=False)
         self.patch_size = patch_size
         self.batch_size = batch_size
         self.offset = offset

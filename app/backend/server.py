@@ -5,6 +5,9 @@ import sys
 import numpy as np
 from PIL import Image
 from scipy.ndimage import label
+import tensorflow as tf
+from pathlib import Path
+from utils import split_to_patches, combine_patches
 
 
 # def img_crop_to_layers(data: np.ndarray, n_layers):
@@ -37,9 +40,14 @@ def bbox(img, v):
 
 class Server:
 
-    def __init__(self, n_classes):
+    def __init__(self, n_classes, patch_s, batch_s, offset):
         self.class_indices = list(range(1, n_classes + 1))
         self.active_anno_img: np.ndarray = None
+        self.active_img: np.ndarray = None
+        self.model = None
+        self.patch_s = patch_s
+        self.batch_s = batch_s
+        self.offset = offset
 
     def send_string(self, s):
         print(json.dumps({'type': 'string', 'content': s}))
@@ -85,29 +93,65 @@ class Server:
         self.send_array(inst_map, ext_type='inst-map', optional={'imgid': id})
         self.send_signal(f'A{id}')
 
-    def load_model(self, name, epoch=None):
-        pass
+    def load_model(self, name):
+        model_path = Path('.\\backend\\models') / (name + '.hdf5')
+        if not model_path.exists():
+            return
+        self.model = tf.keras.models.load_model(model_path, compile=False)
+        self.send_string('Model loaded')
+
+    def _predict_np(self, img):
+        patches = split_to_patches(img, self.patch_s, self.offset, overlay=0.25)
+        init_patch_len = len(patches)
+
+        while (len(patches) % self.batch_s != 0):
+            patches.append(patches[-1])
+        p_patches = []
+
+        for i in range(0, len(patches), self.batch_s):
+            batch = np.stack(patches[i : i+self.batch_s])
+            prediction = self.model.predict_on_batch(batch)
+            for x in prediction:
+                p_patches.append(x)
+        
+        p_patches = p_patches[:init_patch_len]
+        result = combine_patches(p_patches, self.patch_s, self.offset, overlay=0.25, orig_shape=(img.shape[0], img.shape[1], p_patches[0].shape[2]))
+        return result
+
+    def predict(self, img_path: str, id: int):
+        self.active_img = np.array(Image.open(img_path)).astype(np.float32) / 255
+        self.send_string(f'predicting for shape: {self.active_img.shape}')
+        if self.model is not None:
+            prediction = self._predict_np(self.active_img)
+            self.send_string(f'prediction: {prediction.shape}')
+
+    def _ping_image(self):
+        w, h = 4, 4
+        d = np.zeros([w, h, 3], dtype=np.uint8)
+        for i in range(w):
+            for j in range(h):
+                d[i, j] = w * i + j
+        self.send_array(d)
 
     def run(self):
         while True:
-            header = json.loads(input())
-            command = header['type']
+            msg = json.loads(input())
+            command = msg['type']
             if command == 'ping':
                 self.send_string('pong')
             elif command == 'ping_image':
-                w, h = 4, 4
-                d = np.zeros([w, h, 3], dtype=np.uint8)
-                for i in range(w):
-                    for j in range(h):
-                        d[i, j] = w * i + j
-                self.send_array(d)
+                self._ping_image()
             elif command == 'stop':
                 pass
+            elif command == 'load-model':
+                self.load_model(msg['name'])
+            elif command == 'image-predict':
+                self.predict(msg['path'], int(msg['id']))
             elif command == 'get-annotation':
-                self.create_inst_anno(header['path'], int(header['id']))
+                self.create_inst_anno(msg['path'], int(msg['id']))
             elif command == 'shutdown':
                 break
 
 
-server = Server(n_classes=16)
+server = Server(n_classes=16, patch_s=256, batch_s=32, offset=8)
 server.run()

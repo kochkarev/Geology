@@ -58,9 +58,9 @@ document.addEventListener('keydown', (e) => {
 
 imgStructs.listGroupHTML.addEventListener('click', e => imgStructs.selectClick(e));
 
-document.getElementById('btn_st1').addEventListener('click', () => runClick(step=1));
-document.getElementById('btn_st2').addEventListener('click', () => runClick(step=2));
-document.getElementById('btn_stop').addEventListener('click', () => ipcRenderer.send('stop-algo'));
+document.getElementById('btn_load').addEventListener('click', () => ipcRenderer.send('load-model'));
+document.getElementById('btn_predict').addEventListener('click', () => ipcRenderer.send('predict'));
+// document.getElementById('btn_stop').addEventListener('click', () => ipcRenderer.send('stop-algo'));
 
 ipcRenderer.on('files-added', (e, data) => {
     imgStructs.addFiles(data);

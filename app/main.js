@@ -7,7 +7,8 @@ const { ImageList } = require('./utils/structs');
 const backendCfg = {
 	pyEnvName: 'tf',
 	pyEnvPath: 'C:/Users/xubiker/Anaconda3/envs/tf/python',
-	srcPath: './backend/server.py'
+	srcPath: './backend/server.py',
+	modelName: 'model_46_0.07'
 };
 
 let backend = null;
@@ -62,6 +63,8 @@ app.on('ready', () => {
 	});
 
 	ipcMain.on('active-image-update', (event, args) => imageList.onActiveImageUpdate(args));
+	ipcMain.on('load-model', (event, args) => backend.loadModel());
+	ipcMain.on('predict', (event, args) => imageList.predict())
 
 	const mainMenu = Menu.buildFromTemplate(menuTemplate);
 	Menu.setApplicationMenu(mainMenu);

@@ -5,14 +5,15 @@ const { BufferHandler } = require('./buffer');
 class BackendCommunicator {
 
 	constructor(cfg, handlerArray, handlerSignal, handlerString) {
-		let {pyEnvName: pyEnvName, pyEnvPath: pyEnvPath, srcPath: srcPath} = cfg;
+		let {pyEnvName: pyEnvName, pyEnvPath: pyEnvPath, srcPath: srcPath, modelName: modelName} = cfg;
+		this.modelName = modelName;
 		this.bufHandler = new BufferHandler(msg =>  this.processBackendMsg(msg));
 		this.hArray = handlerArray;
 		this.hSignal = handlerSignal;
 		this.hString = handlerString;
 
 		this.state = null;
-		this.image_header = null;
+		this.imageHeader = null;
 		this.proc = spawn(`activate ${pyEnvName} && ${pyEnvPath} ${srcPath}`, {
 			shell: true,
 		});
@@ -49,7 +50,7 @@ class BackendCommunicator {
 						this.hString(msg_json.content);
 						break;
 					case 'array':
-						this.image_header = msg_json;
+						this.imageHeader = msg_json;
 						this.state = 'array';
 						this.bufHandler.setBytesWanted(msg_json.shape.reduce((a, b) => a * b));
 						break;
@@ -61,11 +62,10 @@ class BackendCommunicator {
 				console.log(`#unsupported: ${message.toString()}\n`);
 			}
 		} else if (this.state === 'array') {
-			this.hArray(new Uint8Array(message), this.image_header);
+			this.hArray(new Uint8Array(message), this.imageHeader);
 			this.state = null;
 		}
 	}
-
 	
 	sendAnnotation(header, data) {
 		this._sendJSON(header);
@@ -74,6 +74,14 @@ class BackendCommunicator {
 
 	getInstAnno(annotationFullPath, imageId) {
 		this._sendJSON({'type': 'get-annotation', 'path': annotationFullPath, 'id': imageId});
+	}
+
+	loadModel() {
+		this._sendJSON({'type': 'load-model', 'name': this.modelName});
+	}
+
+	predict(imageFullPath, imageId) {
+		this._sendJSON({'type': 'image-predict', 'path': imageFullPath, 'id': imageId});
 	}
 
 }

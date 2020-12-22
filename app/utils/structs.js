@@ -47,7 +47,8 @@ class ImageList {
             imagePath: fullFilePath,
             imageName: path.parse(fullFilePath).base,
 			instAnnoPath: this.getAnnoPath(fullFilePath),
-			instAnno: new InstAnnotation(imgId)
+			instAnno: new InstAnnotation(imgId),
+			prediction: null
 		};
         this.items.set(imgId, imageItem);
     }
@@ -99,6 +100,13 @@ class ImageList {
 
 	updateAnnoInstMap(instMap) {
 		this.items.get(instMap.imgid)?.instAnno.updateInstMap(instMap);
+	}
+
+	predict() {
+		let imgStruct = this.items.get(this.activeId);
+		if (imgStruct.prediction === null) {
+			this.backend.predict(imgStruct.imagePath, imgStruct.id);
+		}
 	}
 }
 
