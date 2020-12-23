@@ -19,7 +19,7 @@ class ActiveImageWithAnnotationRenderer {
         this.ctxAnnoSem = this.canvAnnoSem.getContext('2d');
         this.ctxAnnoInst = this.canvAnnoInst.getContext('2d');
         
-        this.imgStruct = null;
+        this.xImage = null;
         this.annoSemColorized = null;
         this.annoInst = null;
         this.prevInstId = null;
@@ -31,9 +31,9 @@ class ActiveImageWithAnnotationRenderer {
         this.instColorized = new Map();
     }
 
-    changeContext(imgStruct) {
-        this.imgStruct = imgStruct;
-        let _img = fs.readFileSync(imgStruct.imagePath).toString('base64');
+    changeContext(xImage) {
+        this.xImage = xImage;
+        let _img = fs.readFileSync(xImage.imagePath).toString('base64');
         this.imgElem.src = `data:image/jpg;base64,${_img}`;
         this.annoSem = null;
         this.annoSemColorized = null;
@@ -41,7 +41,7 @@ class ActiveImageWithAnnotationRenderer {
         this.prevInstId = null;
         this.clearAnnoInst();
         this.instColorized.clear();
-        ipcRenderer.send('active-image-update', imgStruct.id);    
+        ipcRenderer.send('active-image-update', xImage.id);    
         this.imgElem.onload = () => {
             this.recalcSize();
             this.renderImage();
@@ -52,12 +52,12 @@ class ActiveImageWithAnnotationRenderer {
 
     loadAnnoSem(alpha=150) {
         // transform mask to colorized annotation
-        this.annoSem = this.imgStruct.annoSemanticGT;
-        this.annoSemColorized = getColorizeAnnoSem(this.imgStruct.annoSemanticGT, this.imgStruct.w, this.imgStruct.h, this.labelsMap, alpha=alpha);
+        this.annoSem = this.xImage.annoSemanticGT;
+        this.annoSemColorized = getColorizeAnnoSem(this.xImage.annoSemanticGT, this.xImage.w, this.xImage.h, this.labelsMap, alpha=alpha);
         // render to temporary canvas
-        this.canvAnnoSemTmp.width = this.imgStruct.w;
-        this.canvAnnoSemTmp.height = this.imgStruct.h;
-        this.ctxAnnoSemTmp.putImageData(new ImageData(this.annoSemColorized, this.imgStruct.w, this.imgStruct.h), 0, 0);
+        this.canvAnnoSemTmp.width = this.xImage.w;
+        this.canvAnnoSemTmp.height = this.xImage.h;
+        this.ctxAnnoSemTmp.putImageData(new ImageData(this.annoSemColorized, this.xImage.w, this.xImage.h), 0, 0);
     }
 
     recalcSize() {
@@ -84,7 +84,7 @@ class ActiveImageWithAnnotationRenderer {
     }
 
     prepareAnnoInst(inst, alpha=255) {
-        this.ctxAnnoInstTmp.clearRect(0, 0, this.imgStruct.w, this.imgStruct.h);
+        this.ctxAnnoInstTmp.clearRect(0, 0, this.xImage.w, this.xImage.h);
         if (inst) {
             if (!this.instColorized.has(inst.id)) {
                 this.instColorized.set(inst.id, colorizeAnnoInst(inst, this.labelsMap, alpha));
@@ -113,11 +113,11 @@ class ActiveImageWithAnnotationRenderer {
     }
 
     annoInstUpdateFromMain(anno) {
-        if (anno.imgId !== this.imgStruct.id)
+        if (anno.imgId !== this.xImage.id)
             return;
         this.annoInst = anno;
-        this.canvAnnoInstTmp.width = this.imgStruct.w;
-        this.canvAnnoInstTmp.height = this.imgStruct.h;    
+        this.canvAnnoInstTmp.width = this.xImage.w;
+        this.canvAnnoInstTmp.height = this.xImage.h;    
     }
 
     cursorMove(x, y) {
@@ -125,7 +125,7 @@ class ActiveImageWithAnnotationRenderer {
         let ys = Math.round(y / this.scale);
 
         if (!this.annoInst && this.annoSem) {
-            let classLabel = getClassLabel(this.annoSem, this.imgStruct.w, this.imgStruct.h, this.labelsMap, xs, ys);
+            let classLabel = getClassLabel(this.annoSem, this.xImage.w, this.xImage.h, this.labelsMap, xs, ys);
             this.statisticsTextElem.innerHTML = `class: ${classLabel}`;
         }
 

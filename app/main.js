@@ -2,7 +2,7 @@ const { app, BrowserWindow, ipcMain, Menu, dialog } = require('electron');
 const { format } = require('url');
 const path = require('path');
 const { BackendCommunicator } = require('./utils/backend');
-const { ImageList } = require('./utils/structs');
+const { XImageCollection } = require('./utils/structs');
 
 const backendCfg = {
 	pyEnvName: 'tf',
@@ -12,7 +12,7 @@ const backendCfg = {
 };
 
 let backend = null;
-let imageList = null;
+let xImages = null;
 
 
 function handlerArray(arr, header) {
@@ -22,10 +22,10 @@ function handlerArray(arr, header) {
 				'src': header.src, 'id': header.id, 'x': header.x, 'y': header.y, 'w': header.shape[1], 'h': header.shape[0],
 				'class': header.class, 'imgid': header.imgid, 'mask': arr, 'area': header.area
 			};
-			imageList.updateAnnoInst(inst);
+			xImages.updateAnnoInst(inst);
 		} else if (header.ext == 'inst-map') {
 			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr, 'src': header.src};
-			imageList.updateAnnoInstMap(instMap);
+			xImages.updateAnnoInstMap(instMap);
 		}
 	} else {
 		console.log(`#arr: shape[${header.shape}]. Got ${arr.length} bytes`);
@@ -35,10 +35,10 @@ function handlerArray(arr, header) {
 function handlerSignal(s) {
 	if (s.startsWith('A')) {
 		let imgId = parseInt(s.slice(1));
-		imageList.onAnnotationLoaded(imgId, 'GT');
+		xImages.onAnnotationLoaded(imgId, 'GT');
 	} else if (s.startsWith('B')) {
 		let imgId = parseInt(s.slice(1));
-		imageList.onAnnotationLoaded(imgId, 'PR');
+		xImages.onAnnotationLoaded(imgId, 'PR');
 	}
 }
 
@@ -61,12 +61,12 @@ app.on('ready', () => {
 			(sig) => handlerSignal(sig),
 			(str) => handlerString(str)
 		);
-		imageList = new ImageList(backend, win.webContents);
+		xImages = new XImageCollection(backend, win.webContents);
 	});
 
-	ipcMain.on('active-image-update', (event, args) => imageList.onActiveImageUpdate(args));
+	ipcMain.on('active-image-update', (event, args) => xImages.onActiveImageUpdate(args));
 	ipcMain.on('load-model', (event, args) => backend.loadModel());
-	ipcMain.on('predict', (event, args) => imageList.predict())
+	ipcMain.on('predict', (event, args) => xImages.predict())
 
 	const mainMenu = Menu.buildFromTemplate(menuTemplate);
 	Menu.setApplicationMenu(mainMenu);
@@ -128,8 +128,8 @@ function dialog_import_files() {
 		})
 		.then(res => {
 			if (!res.canceled) {
-				imageList.addImages(res.filePaths);
-				win.webContents.send('images-added', imageList.items);
+				xImages.addFromPaths(res.filePaths);
+				win.webContents.send('images-added', xImages.items);
 			}
 		})
 		.catch( (e) =>

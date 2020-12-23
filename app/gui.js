@@ -1,7 +1,7 @@
 const {ipcRenderer} = require('electron');
 
 const fs = require('fs');
-const {ImageListWrapper} = require('./utils/structs_ui');
+const {XImageWrapperList} = require('./utils/structs_ui');
 const {ActiveImageWithAnnotationRenderer} = require('./utils/annotation_renderer');
 
 const canvClassAnno = document.getElementById('canv-anno-sem');
@@ -43,9 +43,9 @@ visSelector.addEventListener('change', (e) => {
     console.log(e.target.value);
 });
 
-let imgList = new ImageListWrapper(
+let imgList = new XImageWrapperList(
     document.getElementById('files-list'),
-    (struct) => R.changeContext(struct)
+    (xImage) => R.changeContext(xImage)
 );
 
 document.addEventListener('keydown', (e) => {
@@ -62,10 +62,10 @@ document.getElementById('btn_predict').addEventListener('click', () => ipcRender
 // document.getElementById('btn_stop').addEventListener('click', () => ipcRenderer.send('stop-algo'));
 
 ipcRenderer.on('images-added', (e, items) => {
-    imgList.addMany(items);
+    imgList.updateMany(items);
 });
 
-ipcRenderer.on('anno-loaded', (event, anno) => {
+ipcRenderer.on('anno-loaded', (e, anno) => {
     R.annoInstUpdateFromMain(anno);
 });
 

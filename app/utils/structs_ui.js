@@ -1,35 +1,42 @@
-class ImgStructWrapper {
-    constructor(imgStruct) {
-        this.imgStruct = imgStruct;
+class XImageWrapper {
+    constructor(xImage) {
+        this.xImage = xImage;
         let li = document.createElement('li');
         li.className = "list-group-item";
-        li.innerHTML = imgStruct.imageName;
+        li.innerHTML = xImage.imageName;
         this.li = li;
     }
 }
 
-class ImageListWrapper {
+class XImageWrapperList {
     
     constructor(listGroupHTML, updateImageCallBack) {
         this.items = [];
+        this.itemsMap = new Map();
         this.activeIdx = 0;
         this.activeIdxPrev = 0;
         this.listGroupHTML = listGroupHTML;
         this.updateImageCallBack = updateImageCallBack;
     }
 
-    add(imgStruct) {
-        let wrapper = new ImgStructWrapper(imgStruct);
-        this.items.push(wrapper);
-        this.listGroupHTML.append(wrapper.li);
-        if (this.items.length === 1) {
-            this.selectByIndex(0);
+    update(xImage) {
+        if (this.itemsMap.has(xImage.id)) {
+            let idx = this.itemsMap[xImage.id];
+            this.items[idx].xImage = xImage;
+        } else {
+            let wrapper = new XImageWrapper(xImage);
+            this.itemsMap[xImage.id] = this.items.length;
+            this.items.push(wrapper);
+            this.listGroupHTML.append(wrapper.li);
+            if (this.items.length === 1) {
+                this.selectByIndex(0);
+            }
         }
     }
 
-    addMany(imgStructs) {
-        for (const [key, imgStruct] of imgStructs.entries()) {
-            this.add(imgStruct);
+    updateMany(xImages) {
+        for (const [key, imgStruct] of xImages.entries()) {
+            this.update(imgStruct);
         }
     }
 
@@ -58,8 +65,8 @@ class ImageListWrapper {
         this.activeIdx = newIndex;
         this.listGroupHTML.children[this.activeIdxPrev].classList.remove('active');
         this.listGroupHTML.children[this.activeIdx].classList.add('active');
-        this.updateImageCallBack(this.items[this.activeIdx].imgStruct);
+        this.updateImageCallBack(this.items[this.activeIdx].xImage);
     }
 };
 
-module.exports = {ImgStructWrapper: ImgStructWrapper, ImageListWrapper: ImageListWrapper};
+module.exports = {XImageWrapper: XImageWrapper, XImageWrapperList: XImageWrapperList};

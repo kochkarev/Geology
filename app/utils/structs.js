@@ -32,7 +32,7 @@ class InstAnnotation {
 	}
 }
 
-class ImageItem {
+class XImage {
 
 	constructor(id, fullFilePath) {
 		this.id = id;
@@ -93,7 +93,7 @@ class ImageItem {
 
 }
 
-class ImageList {
+class XImageCollection {
     
     constructor(backend, renderer) {
         this.backend = backend
@@ -102,48 +102,47 @@ class ImageList {
 		this.activeId = -1;
     }
 
-    addImage(fullFilePath) {
+    addFromPath(fullFilePath) {
 		let id = this.items.size + 1;
-		let item = new ImageItem(id, fullFilePath);
+		let item = new XImage(id, fullFilePath);
         this.items.set(id, item);
     }
 
-    addImages(fullFilePaths) {
+    addFromPaths(fullFilePaths) {
         for (let fullFilePath of fullFilePaths) {
-            this.addImage(fullFilePath)
+            this.addFromPath(fullFilePath)
         }
     }
 	
-	onAnnotationLoaded(imgId, source) {
-		console.log(`inst annotation for image ${imgId} from ${source} received!`);
-		let imgStruct = this.items.get(imgId);
+	onAnnotationLoaded(xId, source) {
+		console.log(`inst annotation for image ${xId} from ${source} received!`);
+		let x = this.items.get(xId);
 		switch (source) {
 			case 'GT':
-				imgStruct.annoInstGT.setLoaded();
+				x.annoInstGT.setLoaded();
 				break;
 			case 'PR':
-				imgStruct.annoInstPR.setLoaded();
+				x.annoInstPR.setLoaded();
 				break;
 		}
-		if (imgStruct.id === this.activeId) {
-			this._sendAnnoToRenderer(imgStruct);
+		if (x.id === this.activeId) {
+			this._sendAnnoToRenderer(x);
 		}
 	}
 
 	onActiveImageUpdate(id) {
 		this.activeId = id;
 		console.log(`active image update: ${this.activeId}`);
-		let imgStruct = this.items.get(this.activeId);
-		if (!imgStruct.annoInstGT.isLoaded()) {
-			this.backend.getInstAnno(imgStruct.maskPath, imgStruct.id, 'GT');
+		let x = this.items.get(this.activeId);
+		if (!x.annoInstGT.isLoaded()) {
+			this.backend.getInstAnno(x.maskPath, x.id, 'GT');
 		} else {
-			this._sendAnnoToRenderer(imgStruct);
+			this._sendAnnoToRenderer(x);
 		}
 	}
 
-	_sendAnnoToRenderer(imgStruct) {
-		this.renderer.send('anno-loaded', imgStruct.annoInstGT);
-		this.renderer.send('upd', imgStruct);
+	_sendAnnoToRenderer(x) {
+		this.renderer.send('anno-loaded', x.annoInstGT);
 	}
 
 	updateAnnoInst(inst) {
@@ -155,12 +154,12 @@ class ImageList {
 	}
 
 	predict() {
-		let imgStruct = this.items.get(this.activeId);
-		if (imgStruct.prediction === null) {
-			this.backend.predict(imgStruct.imagePath, imgStruct.id);
+		let x = this.items.get(this.activeId);
+		if (x.prediction === null) {
+			this.backend.predict(x.imagePath, x.id);
 		}
 	}
 }
 
 
-module.exports = {InstdAnnotation: InstAnnotation, ImageList: ImageList}
+module.exports = {InstdAnnotation: InstAnnotation, XImageCollection: XImageCollection}
