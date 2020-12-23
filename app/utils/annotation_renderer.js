@@ -1,7 +1,7 @@
 const fs = window.require('fs');
 
 
-class ActiveImageWithAnnotationRenderer {
+class AnnotationRenderer {
 
     constructor(img, canvAnnoSemTmp, canvAnnoInstTmp, canvAnnoSem, canvAnnoInst, statisticsTextElem, labelsMap, scaleCoeff) {
         this.imgElem = img;
@@ -112,12 +112,14 @@ class ActiveImageWithAnnotationRenderer {
         this.renderAnnoInst();
     }
 
-    annoInstUpdateFromMain(anno) {
+    updateFromMain(xImage) {
+        let anno = xImage.annoInstGT;
         if (anno.imgId !== this.xImage.id)
             return;
         this.annoInst = anno;
         this.canvAnnoInstTmp.width = this.xImage.w;
         this.canvAnnoInstTmp.height = this.xImage.h;    
+
     }
 
     cursorMove(x, y) {
@@ -185,4 +187,4 @@ function colorizeAnnoInst(inst, labelsMap, alpha) {
 }
 
 
-module.exports = {ActiveImageWithAnnotationRenderer: ActiveImageWithAnnotationRenderer};
+module.exports = {AnnotationRenderer: AnnotationRenderer};

@@ -2,7 +2,7 @@ const {ipcRenderer} = require('electron');
 
 const fs = require('fs');
 const {XImageWrapperList} = require('./utils/structs_ui');
-const {ActiveImageWithAnnotationRenderer} = require('./utils/annotation_renderer');
+const {AnnotationRenderer} = require('./utils/annotation_renderer');
 
 const canvClassAnno = document.getElementById('canv-anno-sem');
 const mainImageZone = document.getElementById('main-image-zone');
@@ -20,7 +20,7 @@ function getLabelsDecoded(config='./config/labels.json') {
 }
 
 
-let R = new ActiveImageWithAnnotationRenderer(
+let R = new AnnotationRenderer(
     document.getElementById('img'),
     document.getElementById('canv-tmp-sem'),
     document.getElementById('canv-tmp-inst'),
@@ -59,13 +59,13 @@ imgList.listGroupHTML.addEventListener('click', e => imgList.selectClick(e));
 
 document.getElementById('btn_load').addEventListener('click', () => ipcRenderer.send('load-model'));
 document.getElementById('btn_predict').addEventListener('click', () => ipcRenderer.send('predict'));
-// document.getElementById('btn_stop').addEventListener('click', () => ipcRenderer.send('stop-algo'));
 
-ipcRenderer.on('images-added', (e, items) => {
+ipcRenderer.on('ximages-added', (e, items) => {
     imgList.updateMany(items);
 });
 
-ipcRenderer.on('anno-loaded', (e, anno) => {
-    R.annoInstUpdateFromMain(anno);
+ipcRenderer.on('ximage-update', (e, ximage) => {
+    imgList.update(ximage);
+    R.updateFromMain(ximage);
 });
 

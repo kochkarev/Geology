@@ -21,11 +21,11 @@ class XImageWrapperList {
 
     update(xImage) {
         if (this.itemsMap.has(xImage.id)) {
-            let idx = this.itemsMap[xImage.id];
+            let idx = this.itemsMap.get(xImage.id);
             this.items[idx].xImage = xImage;
         } else {
             let wrapper = new XImageWrapper(xImage);
-            this.itemsMap[xImage.id] = this.items.length;
+            this.itemsMap.set(xImage.id, this.items.length);
             this.items.push(wrapper);
             this.listGroupHTML.append(wrapper.li);
             if (this.items.length === 1) {
@@ -35,8 +35,8 @@ class XImageWrapperList {
     }
 
     updateMany(xImages) {
-        for (const [key, imgStruct] of xImages.entries()) {
-            this.update(imgStruct);
+        for (const xImage of xImages) {
+            this.update(xImage);
         }
     }
 

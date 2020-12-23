@@ -49,7 +49,6 @@ class XImage {
 		this.annoInstPR = new InstAnnotation(id);
 
 		this._loadMask(this.maskPath);
-	
 	}
 
 	_loadMask(maskPath) {
@@ -126,23 +125,22 @@ class XImageCollection {
 				break;
 		}
 		if (x.id === this.activeId) {
-			this._sendAnnoToRenderer(x);
+			this.sendUpdate(x);
 		}
 	}
 
 	onActiveImageUpdate(id) {
 		this.activeId = id;
-		console.log(`active image update: ${this.activeId}`);
 		let x = this.items.get(this.activeId);
 		if (!x.annoInstGT.isLoaded()) {
-			this.backend.getInstAnno(x.maskPath, x.id, 'GT');
+			this.backend.requestInstAnno(x.maskPath, x.id, 'GT');
 		} else {
-			this._sendAnnoToRenderer(x);
+			this.sendUpdate(x);
 		}
 	}
 
-	_sendAnnoToRenderer(x) {
-		this.renderer.send('anno-loaded', x.annoInstGT);
+	sendUpdate(x) {
+		this.renderer.send('ximage-update', x);
 	}
 
 	updateAnnoInst(inst) {
