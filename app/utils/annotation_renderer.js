@@ -1,15 +1,18 @@
 const fs = window.require('fs');
 
+const {XImageWrapperList} = require('./structs_ui');
+
 
 class AnnotationRenderer {
 
-    constructor(img, canvAnnoSemTmp, canvAnnoInstTmp, canvAnnoSem, canvAnnoInst, statisticsTextElem, labelsMap, scaleCoeff) {
+    constructor(filesList, img, canvAnnoSemTmp, canvAnnoInstTmp, canvAnnoSem, canvAnnoInst, statisticsTextElem, visSelector, labelsMap, scaleCoeff) {
         this.imgElem = img;
         this.canvAnnoSemTmp = canvAnnoSemTmp;
         this.canvAnnoInstTmp = canvAnnoInstTmp;
         this.canvAnnoSem = canvAnnoSem;
         this.canvAnnoInst = canvAnnoInst;
         this.statisticsTextElem = statisticsTextElem;
+        this.visSelector = visSelector;
 
         this.labelsMap = labelsMap;
         this.scaleCoeff = scaleCoeff;
@@ -20,70 +23,89 @@ class AnnotationRenderer {
         this.ctxAnnoInst = this.canvAnnoInst.getContext('2d');
         
         this.xImage = null;
-        this.annoSemColorized = null;
         this.annoInst = null;
         this.prevInstId = null;
         this.scale = 1;
 
-        this.w = null;
-        this.h = null;
-
         this.instColorized = new Map();
+
+        this.wXImages = new XImageWrapperList(filesList, (x) => this.selectionChanged(x));
+
+        this.visSelector.addEventListener('change', (e) => {
+            console.log(e.target.value);
+        })
+
+        this.renderOpts = {
+            sem: null,
+            inst: 'GT'
+        }
     }
 
-    changeContext(xImage) {
+    selectionChanged(xImage) {
         this.xImage = xImage;
-        let _img = fs.readFileSync(xImage.imagePath).toString('base64');
-        this.imgElem.src = `data:image/jpg;base64,${_img}`;
+        this.renderImage(xImage);
         this.annoSem = null;
-        this.annoSemColorized = null;
         this.annoInst = null;
         this.prevInstId = null;
         this.clearAnnoInst();
         this.instColorized.clear();
         ipcRenderer.send('active-image-update', xImage.id);    
-        this.imgElem.onload = () => {
-            this.recalcSize();
-            this.renderImage();
-            this.loadAnnoSem();
-            this.renderAnnoSem();
-        }
+        this.renderAnnoSem(this.xImage.annoSemanticGT);
     }
 
-    loadAnnoSem(alpha=150) {
+    _loadAnnoSem(anno, alpha=150) {
         // transform mask to colorized annotation
-        this.annoSem = this.xImage.annoSemanticGT;
-        this.annoSemColorized = getColorizeAnnoSem(this.xImage.annoSemanticGT, this.xImage.w, this.xImage.h, this.labelsMap, alpha=alpha);
+        this.annoSem = anno;
+        let annoSemColorized = getColorizeAnnoSem(anno.data, anno.w, anno.h, this.labelsMap, alpha=alpha);
         // render to temporary canvas
-        this.canvAnnoSemTmp.width = this.xImage.w;
-        this.canvAnnoSemTmp.height = this.xImage.h;
-        this.ctxAnnoSemTmp.putImageData(new ImageData(this.annoSemColorized, this.xImage.w, this.xImage.h), 0, 0);
+        this.canvAnnoSemTmp.width = anno.w;
+        this.canvAnnoSemTmp.height = anno.h;
+        this.ctxAnnoSemTmp.putImageData(new ImageData(annoSemColorized, anno.w, anno.h), 0, 0);
     }
 
-    recalcSize() {
-        this.w = Math.round(this.scale * this.imgElem.naturalWidth);
-        this.h = Math.round(this.scale * this.imgElem.naturalHeight);
+    getSize() {
+        return {
+            w: Math.round(this.scale * this.xImage.w),
+            h: Math.round(this.scale * this.xImage.h)
+        };
     }
 
-    renderImage() {
-        this.imgElem.width = this.w;
-        this.imgElem.height = this.h;
+    renderImage(xImage) {
+        const {w, h} = this.getSize();
+        let _img = fs.readFileSync(xImage.imagePath).toString('base64');
+        this.imgElem.src = `data:image/jpg;base64,${_img}`;
+        this.imgElem.onload = () => {
+            this.imgElem.width = w;
+            this.imgElem.height = h;
+        };
     }
 
-    renderAnnoSem() {
-        this.canvAnnoSem.width = this.w;
-        this.canvAnnoSem.height = this.h;
-        this.ctxAnnoSem.clearRect(0, 0, this.w, this.h);
-        this.ctxAnnoSem.drawImage(this.canvAnnoSemTmp, 0, 0, this.w, this.h);
+    updateImageScale() {
+        const {w, h} = this.getSize();
+        this.imgElem.width = w;
+        this.imgElem.height = h;
+    }
+
+    renderAnnoSem(annoSem) {
+        if (this.annoSem === null) {
+            this._loadAnnoSem(annoSem);
+        }
+        const {w, h} = this.getSize();
+        this.canvAnnoSem.width = w;
+        this.canvAnnoSem.height = h;
+        this.ctxAnnoSem.clearRect(0, 0, w, h);
+        this.ctxAnnoSem.drawImage(this.canvAnnoSemTmp, 0, 0, w, h);
     }
 
     clearAnnoInst() {
-        this.canvAnnoInst.width = this.w;
-        this.canvAnnoInst.height = this.h;
-        this.ctxAnnoInst.clearRect(0, 0, this.w, this.h);
+        const {w, h} = this.getSize();
+        this.canvAnnoInst.width = w;
+        this.canvAnnoInst.height = h;
+        this.ctxAnnoInst.clearRect(0, 0, w, h);
     }
 
-    prepareAnnoInst(inst, alpha=255) {
+    renderAnnoInst(inst, alpha=255) {
+        // render anno to tmp canvas
         this.ctxAnnoInstTmp.clearRect(0, 0, this.xImage.w, this.xImage.h);
         if (inst) {
             if (!this.instColorized.has(inst.id)) {
@@ -92,11 +114,11 @@ class AnnotationRenderer {
             let colorized = this.instColorized.get(inst.id);
             this.ctxAnnoInstTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
         }
-    }
 
-    renderAnnoInst() {
+        // render to anno-inst canvas
+        const {w, h} = this.getSize();
         this.clearAnnoInst()
-        this.ctxAnnoInst.drawImage(this.canvAnnoInstTmp, 0, 0, this.w, this.h);                   
+        this.ctxAnnoInst.drawImage(this.canvAnnoInstTmp, 0, 0, w, h);                   
     }
 
     changeScale(code, step=0.1) {
@@ -106,49 +128,57 @@ class AnnotationRenderer {
         else if (code === 'BracketLeft') {
             this.scale = Math.max(this.scale - step, 0.1);
         }
-        this.recalcSize();
-        this.renderImage();
-        this.renderAnnoSem();
-        this.renderAnnoInst();
+        this.updateImageScale();
+        this.renderAnnoSem(this.xImage.annoSemanticGT);
+        //this.renderAnnoInst();
     }
 
     updateFromMain(xImage) {
+        this.wXImages.update(xImage);
         let anno = xImage.annoInstGT;
         if (anno.imgId !== this.xImage.id)
             return;
         this.annoInst = anno;
         this.canvAnnoInstTmp.width = this.xImage.w;
-        this.canvAnnoInstTmp.height = this.xImage.h;    
-
+        this.canvAnnoInstTmp.height = this.xImage.h;
     }
 
     cursorMove(x, y) {
-        let xs = Math.round(x / this.scale);
-        let ys = Math.round(y / this.scale);
-
         if (!this.annoInst && this.annoSem) {
-            let classLabel = getClassLabel(this.annoSem, this.xImage.w, this.xImage.h, this.labelsMap, xs, ys);
-            this.statisticsTextElem.innerHTML = `class: ${classLabel}`;
+            this.updateStatisticsSem(this.annoSem, x, y);
         }
 
         if (this.annoInst?.instMap) {
+            const xs = Math.round(x / this.scale);
+            const ys = Math.round(y / this.scale);
+
             let instId = this.annoInst.instMap.data[(ys * this.annoInst.instMap.w + xs) * 3];
             if (instId !== this.prevInstId) {
                 let inst = this.annoInst.instances[instId - 1];
-                this.prepareAnnoInst(inst);
-                this.renderAnnoInst();
+                this.renderAnnoInst(inst);
                 this.prevInstId;
-                if (inst) {
-                    let areaM = Math.round(inst.area * this.scaleCoeff * this.scaleCoeff);
-                    this.statisticsTextElem.innerHTML =
-                    `class: ${this.labelsMap[inst.class].name}<br>
-                    area: ${inst.area} px<br>
-                    area: ${areaM} µm2<br>
-                    objectId: ${inst.id}`;
-                } else {
-                    this.statisticsTextElem.innerHTML = `class: Background`;
-                }
+                this.updateStatisticsInst(inst);
             }
+        }
+    }
+
+    updateStatisticsSem(annoSem, x, y) {
+        const xs = Math.round(x / this.scale);
+        const ys = Math.round(y / this.scale);
+        let classLabel = getClassLabel(annoSem.data, annoSem.w, annoSem.h, this.labelsMap, xs, ys);
+        this.statisticsTextElem.innerHTML = `class: ${classLabel}`;
+    }
+
+    updateStatisticsInst(inst) {
+        if (inst) {
+            let areaM = Math.round(inst.area * this.scaleCoeff * this.scaleCoeff);
+            this.statisticsTextElem.innerHTML =
+            `class: ${this.labelsMap[inst.class].name}<br>
+            area: ${inst.area} px<br>
+            area: ${areaM} µm2<br>
+            objectId: ${inst.id}`;
+        } else {
+            this.statisticsTextElem.innerHTML = `class: Background`;
         }
     }
 }

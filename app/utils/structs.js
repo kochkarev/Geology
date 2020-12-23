@@ -3,12 +3,24 @@ const fs = require('fs');
 const UPNG = require('upng-js');
 
 
+class SemAnnotation {
+	constructor(imgId, data, w, h) {
+		this.imgId = imgId;
+		this.data = data;
+		this.w = w;
+		this.h = h;
+	}
+}
+
+
 class InstAnnotation {
-	constructor(imgId) {
+	constructor(imgId, w, h) {
 		this.imgId = imgId;
 		this.instMap = null;
 		this.instances = [];
 		this.loaded = false;
+		this.w = w;
+		this.h = h;
 	}
 
 	addInst(inst) {
@@ -30,6 +42,7 @@ class InstAnnotation {
 	isLoaded() {
 		return this.loaded;
 	}
+
 }
 
 class XImage {
@@ -43,19 +56,17 @@ class XImage {
 		this.imageName = path.parse(fullFilePath).base,
 		this.maskPath = this.getAnnoPath(fullFilePath),
 	
-		this.annoSemanticGT = null;
-		this.annoInstGT = new InstAnnotation(id);
+		this.annoSemanticGT = this.loadMask(this.maskPath); // this updates w, h
+		this.annoInstGT = new InstAnnotation(id, this.w, this.h);
 		this.annoSemanticPR = null;
-		this.annoInstPR = new InstAnnotation(id);
-
-		this._loadMask(this.maskPath);
+		this.annoInstPR = new InstAnnotation(id, this.w, this.h);
 	}
 
-	_loadMask(maskPath) {
+	loadMask(maskPath) {
 		let mask = UPNG.decode(fs.readFileSync(maskPath));
 		this.w = mask.width;
 		this.h = mask.height;
-		this.annoSemanticGT = mask.data;
+		return new SemAnnotation(this.id, mask.data, this.w, this.h);
 	}
 
 	getAnnoPath(imageFullPath) {
@@ -160,4 +171,4 @@ class XImageCollection {
 }
 
 
-module.exports = {InstdAnnotation: InstAnnotation, XImageCollection: XImageCollection}
+module.exports = {InstAnnotation: InstAnnotation, SemAnnotation: SemAnnotation, XImageCollection: XImageCollection}

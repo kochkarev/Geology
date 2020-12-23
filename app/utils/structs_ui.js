@@ -10,13 +10,15 @@ class XImageWrapper {
 
 class XImageWrapperList {
     
-    constructor(listGroupHTML, updateImageCallBack) {
+    constructor(listGroupHTML, selectImageCallBack) {
         this.items = [];
         this.itemsMap = new Map();
         this.activeIdx = 0;
         this.activeIdxPrev = 0;
         this.listGroupHTML = listGroupHTML;
-        this.updateImageCallBack = updateImageCallBack;
+        this.selectImageCallBack = selectImageCallBack;
+
+        this.listGroupHTML.addEventListener('click', e => this.selectClick(e));
     }
 
     update(xImage) {
@@ -65,7 +67,7 @@ class XImageWrapperList {
         this.activeIdx = newIndex;
         this.listGroupHTML.children[this.activeIdxPrev].classList.remove('active');
         this.listGroupHTML.children[this.activeIdx].classList.add('active');
-        this.updateImageCallBack(this.items[this.activeIdx].xImage);
+        this.selectImageCallBack(this.items[this.activeIdx].xImage);
     }
 };
 
