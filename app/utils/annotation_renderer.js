@@ -31,36 +31,40 @@ class AnnotationRenderer {
 
         this.wXImages = new XImageWrapperList(filesList, (x) => this.selectionChanged(x));
 
-        this.visSelector.addEventListener('change', (e) => {
-            console.log(e.target.value);
-        })
-
         this.renderOpts = {
             sem: null,
             inst: 'GT'
         }
+
+        this.visSelector.addEventListener('change', (e) => {
+            switch (e.target.value) {
+                case 'SRC':
+                    this.renderOpts.sem = null;
+                    break;
+                case 'GT':
+                    this.renderOpts.sem = 'GT';
+                    break;
+                case 'PR':
+                    this.renderOpts.sem = null;
+                    break;
+                case 'ERR':
+                    this.renderOpts.sem = null;
+                    break;
+            }
+            this.renderAnnoSem();
+        })
+
     }
 
     selectionChanged(xImage) {
         this.xImage = xImage;
-        this.renderImage(xImage);
-        this.annoSem = null;
+        this.renderImage(xImage, true);
         this.annoInst = null;
         this.prevInstId = null;
         this.clearAnnoInst();
         this.instColorized.clear();
-        ipcRenderer.send('active-image-update', xImage.id);    
-        this.renderAnnoSem(this.xImage.annoSemanticGT);
-    }
-
-    _loadAnnoSem(anno, alpha=150) {
-        // transform mask to colorized annotation
-        this.annoSem = anno;
-        let annoSemColorized = getColorizeAnnoSem(anno.data, anno.w, anno.h, this.labelsMap, alpha=alpha);
-        // render to temporary canvas
-        this.canvAnnoSemTmp.width = anno.w;
-        this.canvAnnoSemTmp.height = anno.h;
-        this.ctxAnnoSemTmp.putImageData(new ImageData(annoSemColorized, anno.w, anno.h), 0, 0);
+        ipcRenderer.send('active-image-update', xImage.id);
+        this.renderAnnoSem();
     }
 
     getSize() {
@@ -70,31 +74,58 @@ class AnnotationRenderer {
         };
     }
 
-    renderImage(xImage) {
-        const {w, h} = this.getSize();
-        let _img = fs.readFileSync(xImage.imagePath).toString('base64');
-        this.imgElem.src = `data:image/jpg;base64,${_img}`;
-        this.imgElem.onload = () => {
+    renderImage(xImage, full) {
+        if (full) {
+            const {w, h} = this.getSize();
+            let _img = fs.readFileSync(xImage.imagePath).toString('base64');
+            this.imgElem.src = `data:image/jpg;base64,${_img}`;
+            this.imgElem.onload = () => {
+                this.imgElem.width = w;
+                this.imgElem.height = h;
+            };
+        } else {
+            const {w, h} = this.getSize();
             this.imgElem.width = w;
             this.imgElem.height = h;
-        };
-    }
-
-    updateImageScale() {
-        const {w, h} = this.getSize();
-        this.imgElem.width = w;
-        this.imgElem.height = h;
-    }
-
-    renderAnnoSem(annoSem) {
-        if (this.annoSem === null) {
-            this._loadAnnoSem(annoSem);
         }
+    }
+
+    _annoSemLoad(anno, alpha=150) {
+        // transform mask to colorized annotation
+        let annoSemColorized = getColorizeAnnoSem(anno.data, anno.w, anno.h, this.labelsMap, alpha=alpha);
+        // render to temporary canvas
+        this.canvAnnoSemTmp.width = anno.w;
+        this.canvAnnoSemTmp.height = anno.h;
+        this.ctxAnnoSemTmp.putImageData(new ImageData(annoSemColorized, anno.w, anno.h), 0, 0);
+    }
+
+    _annoSemClear() {
+        const {w, h} = this.getSize();
+        this.canvAnnoSem.width = w;
+        this.canvAnnoSem.height = h;
+        this.ctxAnnoSem.clearRect(0, 0, w, h);
+    }
+
+    _annoSemUpdate() {
         const {w, h} = this.getSize();
         this.canvAnnoSem.width = w;
         this.canvAnnoSem.height = h;
         this.ctxAnnoSem.clearRect(0, 0, w, h);
         this.ctxAnnoSem.drawImage(this.canvAnnoSemTmp, 0, 0, w, h);
+    }
+
+    renderAnnoSem() {
+        if (this.renderOpts.sem === null) {
+            this._annoSemClear();
+        } else if (this.renderOpts.sem === 'GT') {
+            if (this.annoSemCached === this.xImage.annoSemanticGT) {
+                this._annoSemUpdate();
+            } else {
+                this._annoSemLoad(this.xImage.annoSemanticGT);
+                this._annoSemUpdate();
+                this.annoSemCached = this.xImage.annoSemanticGT;
+            }
+        }
     }
 
     clearAnnoInst() {
@@ -128,8 +159,8 @@ class AnnotationRenderer {
         else if (code === 'BracketLeft') {
             this.scale = Math.max(this.scale - step, 0.1);
         }
-        this.updateImageScale();
-        this.renderAnnoSem(this.xImage.annoSemanticGT);
+        this.renderImage(this.xImage, false);
+        this.renderAnnoSem();
         //this.renderAnnoInst();
     }
 
@@ -144,8 +175,8 @@ class AnnotationRenderer {
     }
 
     cursorMove(x, y) {
-        if (!this.annoInst && this.annoSem) {
-            this.updateStatisticsSem(this.annoSem, x, y);
+        if (!this.annoInst && this.xImage !== null) {
+            this.updateStatisticsSem(this.xImage.annoSemanticGT, x, y);
         }
 
         if (this.annoInst?.instMap) {
