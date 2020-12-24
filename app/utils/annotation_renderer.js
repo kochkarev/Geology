@@ -3,6 +3,47 @@ const fs = window.require('fs');
 const {XImageWrapperList} = require('./structs_ui');
 
 
+class Context {
+    constructor(labelsMap) {
+        this.instCache = new Map();
+        this.instPrevId = new Map();
+        this.labelsMap = labelsMap;
+    }
+
+    resetInstCache() {
+        for (const [k, v] of this.instCache.entries()) {
+            v.clear();
+        }
+        this.resetPrevInstId();
+    }
+
+    resetPrevInstId() {
+        this.instPrevId.clear();
+    }
+
+    instColorized(inst, alpha) {
+        if (inst == null) {
+            return null;
+        }
+        if (!this.instCache.has(inst.src)) {
+            this.instCache.set(inst.src, new Map());
+        }
+        if (!this.instCache.get(inst.src).has(inst.id)) {
+            this.instCache.get(inst.src).set(inst.id, colorizeAnnoInst(inst, this.labelsMap, alpha));
+        }
+        return this.instCache.get(inst.src).get(inst.id);
+    }
+
+    setPrevInstId(src, id) {
+        this.instPrevId.set(src, id);
+    } 
+
+    getPrevInstId(src) {
+        return this.instPrevId.get(src);
+    }
+
+}
+
 class AnnotationRenderer {
 
     constructor(filesList, img, canvAnnoSemTmp, canvAnnoInstTmp, canvAnnoSem, canvAnnoInst, statisticsTextElem, visSelector, labelsMap, scaleCoeff) {
@@ -23,11 +64,7 @@ class AnnotationRenderer {
         this.ctxAnnoInst = this.canvAnnoInst.getContext('2d');
         
         this.xImage = null;
-        this.annoInst = null;
-        this.prevInstId = null;
         this.scale = 1;
-
-        this.instColorized = new Map();
 
         this.wXImages = new XImageWrapperList(filesList, (x) => this.selectionChanged(x));
 
@@ -36,40 +73,40 @@ class AnnotationRenderer {
             inst: null
         }
 
-        this.visSelector.addEventListener('change', (e) => {
-            switch (e.target.value) {
-                case 'SRC':
-                    this.renderOpts.sem = null;
-                    this.renderOpts.inst = null;
-                    break;
-                case 'GT':
-                    this.renderOpts.sem = 'GT';
-                    this.renderOpts.inst = 'GT';
-                    break;
-                case 'PR':
-                    this.renderOpts.sem = null;
-                    this.renderOpts.inst = 'GT';
-                    break;
-                case 'ERR':
-                    this.renderOpts.sem = 'GT';
-                    this.renderOpts.inst = null;
-                    break;
-            }
-            this.renderAnnoSem();
-            this.clearAnnoInst();
-        });
+        this.visSelector.addEventListener('change', (e) => this.visSelectorChanged(e.target.value));
+        this.ctx = new Context(this.labelsMap);
+    }
 
-        this.createAnnoInstCache();
+    visSelectorChanged(val) {
+        switch (val) {
+            case 'SRC':
+                this.renderOpts.sem = null;
+                this.renderOpts.inst = null;
+                break;
+            case 'GT':
+                this.renderOpts.sem = 'GT';
+                this.renderOpts.inst = 'GT';
+                break;
+            case 'PR':
+                this.renderOpts.sem = null;
+                this.renderOpts.inst = 'GT';
+                break;
+            case 'ERR':
+                this.renderOpts.sem = 'GT';
+                this.renderOpts.inst = null;
+                break;
+        }
+        this.renderAnnoSem();
+        this.clearAnnoInst();
+        this.resetStatistics();
     }
 
     selectionChanged(xImage) {
         this.xImage = xImage;
-        this.clearAnnoInstCache();
+        this.ctx.resetInstCache();
         this.renderImage(xImage, true);
-        this.annoInst = null;
-        this.prevInstId = null;
+        this.ctx.resetPrevInstId();
         this.clearAnnoInst();
-        this.instColorized.clear();
         ipcRenderer.send('active-image-update', xImage.id);
         this.renderAnnoSem();
     }
@@ -97,23 +134,21 @@ class AnnotationRenderer {
         }
     }
 
-    _annoSemLoad(anno, alpha=150) {
-        // transform mask to colorized annotation
+    loadAnnoSem(anno, alpha=150) {
         let annoSemColorized = getColorizeAnnoSem(anno.data, anno.w, anno.h, this.labelsMap, alpha=alpha);
-        // render to temporary canvas
         this.canvAnnoSemTmp.width = anno.w;
         this.canvAnnoSemTmp.height = anno.h;
         this.ctxAnnoSemTmp.putImageData(new ImageData(annoSemColorized, anno.w, anno.h), 0, 0);
     }
 
-    _annoSemClear() {
+    clearAnnoSem() {
         const {w, h} = this.getSize();
         this.canvAnnoSem.width = w;
         this.canvAnnoSem.height = h;
         this.ctxAnnoSem.clearRect(0, 0, w, h);
     }
 
-    _annoSemUpdate() {
+    updateAnnoSem() {
         const {w, h} = this.getSize();
         this.canvAnnoSem.width = w;
         this.canvAnnoSem.height = h;
@@ -123,15 +158,14 @@ class AnnotationRenderer {
 
     renderAnnoSem() {
         if (this.renderOpts.sem === null) {
-            this._annoSemClear();
+            this.clearAnnoSem();
         } else {
-            if (this.annoSemCached === this.xImage.annoSemantic.get(this.renderOpts.sem)) {
-                this._annoSemUpdate();
-            } else {
-                this._annoSemLoad(this.xImage.annoSemantic.get(this.renderOpts.sem));
-                this._annoSemUpdate();
-                this.annoSemCached = this.xImage.annoSemantic.get(this.renderOpts.sem);
-            }
+            let annoSem = this.xImage.annoSemantic.get(this.renderOpts.sem);
+            if (this.annoSemCached !== annoSem) {
+                this.loadAnnoSem(annoSem);
+                this.annoSemCached = annoSem;
+            }                
+            this.updateAnnoSem();
         }
     }
 
@@ -142,20 +176,10 @@ class AnnotationRenderer {
         this.ctxAnnoInst.clearRect(0, 0, w, h);
     }
 
-    getColorizedInst(inst, alpha) {
-        if (inst == null) { // null or undefined
-            return null;
-        }
-        if (!this.annoInstCache.get(inst.src).has(inst.id)) {
-            this.annoInstCache.get(inst.src).set(inst.id, colorizeAnnoInst(inst, this.labelsMap, alpha));
-        }
-        return this.annoInstCache.get(inst.src).get(inst.id);
-    }
-
     renderOneInst(inst, alpha=255) {
         // render anno to tmp canvas
         this.ctxAnnoInstTmp.clearRect(0, 0, this.xImage.w, this.xImage.h);
-        let colorized = this.getColorizedInst(inst, alpha);
+        let colorized = this.ctx.instColorized(inst, alpha);
         if (colorized !== null) {
             this.ctxAnnoInstTmp.putImageData(new ImageData(colorized, inst.w, inst.h), inst.x, inst.y);
         }
@@ -165,30 +189,15 @@ class AnnotationRenderer {
         this.ctxAnnoInst.drawImage(this.canvAnnoInstTmp, 0, 0, w, h);                   
     }
 
-    resetPrevId() {
-        this.annoInstPrevId = new Map();
-        this.annoInstPrevId.set('GT', undefined);
-        this.annoInstPrevId.set('PR', undefined);
-    }
-
-    createAnnoInstCache() {
-        this.annoInstCache = new Map();
-        this.annoInstCache.set('GT', new Map());
-        this.annoInstCache.set('PR', new Map());
-        this.resetPrevId();
-    }
-
-    clearAnnoInstCache() {
-        this.annoInstCache.get('GT').clear();
-        this.annoInstCache.get('PR').clear();
-        this.resetPrevId();
-    }
-
     getInst(src, x, y) {
         const xs = Math.round(x / this.scale);
         const ys = Math.round(y / this.scale);
         if (this.xImage?.annoInst.has(src)) {
-            let instId = this.xImage.annoInst.get(src).instMap.data[(ys * this.xImage.w + xs) * 3];
+            let instMap = this.xImage.annoInst.get(src).instMap;
+            if (instMap == null) {
+                return null;
+            }
+            let instId = instMap.data[(ys * this.xImage.w + xs) * 3];
             if (instId === 0) {
                 return null;
             }
@@ -200,15 +209,14 @@ class AnnotationRenderer {
     renderAnnoInst(x, y) {
         let src = this.renderOpts.inst;
         let inst = this.getInst(src, x, y);
-        if (inst == null && this.annoInstPrevId.get(src) != null) {
+        if (inst == null && this.ctx.getPrevInstId(src) != null) {
             this.clearAnnoInst();
-            this.annoInstPrevId.set(src, null);
-            this.updateStatisticsInst(null);
-        } else if (inst != null && inst.id !== this.annoInstPrevId.get(src)) {
+            this.ctx.setPrevInstId(src, null);
+        } else if (inst != null && inst.id !== this.ctx.getPrevInstId(src)) {
             this.renderOneInst(inst);
-            this.updateStatisticsInst(inst);
-            this.annoInstPrevId.set(src, inst.id);
+            this.ctx.setPrevInstId(src, inst.id);
         }
+        this.updateStatisticsInst(inst);
     }
 
     changeScale(code, step=0.1) {
@@ -218,7 +226,7 @@ class AnnotationRenderer {
         else if (code === 'BracketLeft') {
             this.scale = Math.max(this.scale - step, 0.1);
         }
-        this.resetPrevId();
+        this.ctx.resetPrevInstId();
         this.renderImage(this.xImage, false);
         this.renderAnnoSem();
         this.clearAnnoInst();
@@ -234,15 +242,15 @@ class AnnotationRenderer {
     }
 
     cursorMove(x, y) {
-        if (this.xImage !== null) {
-            let semSrc = this.renderOpts.sem;
-            let instSrc = this.renderOpts.inst;
-            if (semSrc !== null && (instSrc === null || this.xImage.annoInst.get(instSrc) == null)) {
-                this.updateStatisticsSem(this.xImage.annoSemantic.get(semSrc), x, y);
-            }
-            if (instSrc !== null && this.xImage.annoInst.get(instSrc) !== null) {
-                this.renderAnnoInst(x, y);
-            }
+        if (this.xImage == null)
+            return;
+        let semSrc = this.renderOpts.sem;
+        let instSrc = this.renderOpts.inst;
+        if (semSrc !== null && (instSrc === null || this.xImage.annoInst.get(instSrc) == null)) {
+            this.updateStatisticsSem(this.xImage.annoSemantic.get(semSrc), x, y);
+        }
+        if (instSrc !== null && this.xImage.annoInst.get(instSrc) != null) {
+            this.renderAnnoInst(x, y);
         }
     }
 
@@ -268,6 +276,10 @@ class AnnotationRenderer {
         } else {
             this.statisticsTextElem.innerHTML = `class: Background`;
         }
+    }
+
+    resetStatistics() {
+        this.statisticsTextElem.innerHTML = ``;
     }
 }
 
