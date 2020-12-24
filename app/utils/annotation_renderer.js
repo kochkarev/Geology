@@ -33,26 +33,31 @@ class AnnotationRenderer {
 
         this.renderOpts = {
             sem: null,
-            inst: 'GT'
+            inst: null
         }
 
         this.visSelector.addEventListener('change', (e) => {
             switch (e.target.value) {
                 case 'SRC':
                     this.renderOpts.sem = null;
+                    this.renderOpts.inst = null;
                     break;
                 case 'GT':
                     this.renderOpts.sem = 'GT';
+                    this.renderOpts.inst = 'GT';
                     break;
                 case 'PR':
                     this.renderOpts.sem = null;
+                    this.renderOpts.inst = 'GT';
                     break;
                 case 'ERR':
-                    this.renderOpts.sem = null;
+                    this.renderOpts.sem = 'GT';
+                    this.renderOpts.inst = null;
                     break;
             }
             this.renderAnnoSem();
-        })
+            this.clearAnnoInst();
+        });
 
         this.createAnnoInstCache();
     }
@@ -63,7 +68,7 @@ class AnnotationRenderer {
         this.renderImage(xImage, true);
         this.annoInst = null;
         this.prevInstId = null;
-        this._annoInstClear();
+        this.clearAnnoInst();
         this.instColorized.clear();
         ipcRenderer.send('active-image-update', xImage.id);
         this.renderAnnoSem();
@@ -119,18 +124,18 @@ class AnnotationRenderer {
     renderAnnoSem() {
         if (this.renderOpts.sem === null) {
             this._annoSemClear();
-        } else if (this.renderOpts.sem === 'GT') {
-            if (this.annoSemCached === this.xImage.annoSemanticGT) {
+        } else {
+            if (this.annoSemCached === this.xImage.annoSemantic.get(this.renderOpts.sem)) {
                 this._annoSemUpdate();
             } else {
-                this._annoSemLoad(this.xImage.annoSemanticGT);
+                this._annoSemLoad(this.xImage.annoSemantic.get(this.renderOpts.sem));
                 this._annoSemUpdate();
-                this.annoSemCached = this.xImage.annoSemanticGT;
+                this.annoSemCached = this.xImage.annoSemantic.get(this.renderOpts.sem);
             }
         }
     }
 
-    _annoInstClear() {
+    clearAnnoInst() {
         const {w, h} = this.getSize();
         this.canvAnnoInst.width = w;
         this.canvAnnoInst.height = h;
@@ -156,7 +161,7 @@ class AnnotationRenderer {
         }
         // render to anno-inst canvas
         const {w, h} = this.getSize();
-        this._annoInstClear()
+        this.clearAnnoInst()
         this.ctxAnnoInst.drawImage(this.canvAnnoInstTmp, 0, 0, w, h);                   
     }
 
@@ -193,23 +198,17 @@ class AnnotationRenderer {
     }
 
     renderAnnoInst(x, y) {
-        if (this.renderOpts.inst === null || x == null || y == null) {
-            this._annoInstClear();
-        } else {
-            if (this.renderOpts.inst === 'GT') {
-                let inst = this.getInst('GT', x, y);
-                if (inst == null && this.annoInstPrevId.get('GT') != null) {
-                    this._annoInstClear();
-                    this.annoInstPrevId.set('GT', null);
-                } else if (inst != null && inst.id !== this.annoInstPrevId.get('GT')) {
-                    this.renderOneInst(inst);
-                    this.updateStatisticsInst(inst);
-                    this.annoInstPrevId.set('GT', inst.id);
-                }
-            } else if (this.renderOpts.inst === 'PR') {
-
-            }
-        } 
+        let src = this.renderOpts.inst;
+        let inst = this.getInst(src, x, y);
+        if (inst == null && this.annoInstPrevId.get(src) != null) {
+            this.clearAnnoInst();
+            this.annoInstPrevId.set(src, null);
+            this.updateStatisticsInst(null);
+        } else if (inst != null && inst.id !== this.annoInstPrevId.get(src)) {
+            this.renderOneInst(inst);
+            this.updateStatisticsInst(inst);
+            this.annoInstPrevId.set(src, inst.id);
+        }
     }
 
     changeScale(code, step=0.1) {
@@ -222,7 +221,7 @@ class AnnotationRenderer {
         this.resetPrevId();
         this.renderImage(this.xImage, false);
         this.renderAnnoSem();
-        this.renderAnnoInst();
+        this.clearAnnoInst();
     }
 
     updateFromMain(xImage) {
@@ -235,10 +234,16 @@ class AnnotationRenderer {
     }
 
     cursorMove(x, y) {
-        if (!this.annoInst && this.xImage !== null) {
-            this.updateStatisticsSem(this.xImage.annoSemanticGT, x, y);
+        if (this.xImage !== null) {
+            let semSrc = this.renderOpts.sem;
+            let instSrc = this.renderOpts.inst;
+            if (semSrc !== null && (instSrc === null || this.xImage.annoInst.get(instSrc) == null)) {
+                this.updateStatisticsSem(this.xImage.annoSemantic.get(semSrc), x, y);
+            }
+            if (instSrc !== null && this.xImage.annoInst.get(instSrc) !== null) {
+                this.renderAnnoInst(x, y);
+            }
         }
-        this.renderAnnoInst(x, y);
     }
 
     updateStatisticsSem(annoSem, x, y) {

@@ -59,8 +59,8 @@ class XImage {
 		this.maskPath = this.getAnnoPath(fullFilePath),
 	
 		this.annoInst = new Map();
-		this.annoSemanticGT = this.loadMask(this.maskPath); // this updates w, h
-		this.annoSemanticPR = null;
+		this.annoSemantic = new Map();
+		this.annoSemantic.set('GT', this.loadMask(this.maskPath)); // this updates w, h
 	}
 
 	loadMask(maskPath) {
