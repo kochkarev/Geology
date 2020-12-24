@@ -58,10 +58,9 @@ class XImage {
 		this.imageName = path.parse(fullFilePath).base,
 		this.maskPath = this.getAnnoPath(fullFilePath),
 	
+		this.annoInst = new Map();
 		this.annoSemanticGT = this.loadMask(this.maskPath); // this updates w, h
-		this.annoInstGT = new InstAnnotation('GT', id, this.w, this.h);
 		this.annoSemanticPR = null;
-		this.annoInstPR = new InstAnnotation('PR', id, this.w, this.h);
 	}
 
 	loadMask(maskPath) {
@@ -81,26 +80,19 @@ class XImage {
 		}
 	}
 
-	updateAnnoInst(inst) {
-		switch (inst.src) {
-			case 'GT':
-				this.annoInstGT.addInst(inst);
-				break;
-			case 'PR':
-				this.annoInstPR.addInst(inst);
-				break;
+	getAnnoInst(src) {
+		if (!this.annoInst.has(src)) {
+			this.annoInst.set(src, new InstAnnotation('GT', this.id, this.w, this.h));
 		}
+		return this.annoInst.get(src);
+	}
+
+	updateAnnoInst(inst) {
+		this.getAnnoInst(inst.src).addInst(inst);
 	}
 
 	updateAnnoInstMap(instMap) {
-		switch (instMap.src) {
-			case 'GT':
-				this.annoInstGT.updateInstMap(instMap);
-				break;
-			case 'PR':
-				this.annoInstPR.updateInstMap(instMap);
-				break;
-		}
+		this.getAnnoInst(instMap.src).updateInstMap(instMap);
 	}
 
 }
@@ -129,14 +121,7 @@ class XImageCollection {
 	onAnnotationLoaded(xId, source) {
 		console.log(`inst annotation for image ${xId} from ${source} received!`);
 		let x = this.items.get(xId);
-		switch (source) {
-			case 'GT':
-				x.annoInstGT.setLoaded();
-				break;
-			case 'PR':
-				x.annoInstPR.setLoaded();
-				break;
-		}
+		x.annoInst.get(source).setLoaded();
 		if (x.id === this.activeId) {
 			this.sendUpdate(x);
 		}
@@ -145,7 +130,7 @@ class XImageCollection {
 	onActiveImageUpdate(id) {
 		this.activeId = id;
 		let x = this.items.get(this.activeId);
-		if (!x.annoInstGT.isLoaded()) {
+		if (!x.annoInst.has('GT')) {
 			this.backend.requestInstAnno(x.maskPath, x.id, 'GT');
 		} else {
 			this.sendUpdate(x);
