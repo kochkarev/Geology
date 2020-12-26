@@ -95,6 +95,11 @@ class XImage {
 		this.getAnnoInst(instMap.src).updateInstMap(instMap);
 	}
 
+	updateAnnoSem(anno) {
+		let a = new SemAnnotation(anno.src, anno.id, anno.mask, anno.w, anno.h);
+		this.annoSemantic.set(anno.src, a);
+	}
+
 }
 
 class XImageCollection {
@@ -137,6 +142,10 @@ class XImageCollection {
 		}
 	}
 
+	onModelLoaded() {
+		this.renderer.send('model-loaded');
+	}
+
 	sendUpdate(x) {
 		this.renderer.send('ximage-update', x);
 	}
@@ -149,9 +158,15 @@ class XImageCollection {
 		this.items.get(instMap.imgid)?.updateAnnoInstMap(instMap);
 	}
 
+	updateAnnoSem(anno) {
+		let x = this.items.get(anno.id);
+		x.updateAnnoSem(anno);
+		this.sendUpdate(x);
+	}
+
 	predict() {
 		let x = this.items.get(this.activeId);
-		if (x.prediction === null) {
+		if (x.prediction == null) {
 			this.backend.predict(x.imagePath, x.id);
 		}
 	}

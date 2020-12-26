@@ -103,6 +103,7 @@ class Server:
             return
         self.model = tf.keras.models.load_model(model_path, compile=False)
         self.send_string('Model loaded')
+        self.send_signal('L1')
 
     def _predict_np(self, img):
         patches = split_to_patches(img, self.patch_s, self.offset, overlay=0.25)
@@ -122,12 +123,34 @@ class Server:
         result = combine_patches(p_patches, self.patch_s, self.offset, overlay=0.25, orig_shape=(img.shape[0], img.shape[1], p_patches[0].shape[2]))
         return result
 
+    def post_proc_prediction(self, pred: np.ndarray, src_shape):
+        h, w = src_shape[0: 2]
+        res = np.zeros([h, w], dtype=np.uint8)
+        sh_y = (h - pred.shape[0]) // 2
+        sh_x = (w - pred.shape[1]) // 2
+        a = np.argmax(pred, axis=2)
+        res[sh_y : sh_y + a.shape[0], sh_x : sh_x + a.shape[1]] = a
+        # tidying up labels
+        res += 100
+        res = np.where(res == 100, 0, res)  # 0 : "Other" -> 0 
+        res = np.where(res == 101, 12, res) # 1 : "Sh" -> 12
+        res = np.where(res == 102, 6, res)  # 2 : "PyMrc" -> 6
+        res = np.where(res == 103, 2, res)  # 3 : "Gl" -> 2
+        # convert mask to 3-channels
+        res = np.stack([res, res, res], axis=2)
+        return res
+    
+
     def predict(self, img_path: str, id: int):
-        self.active_img = np.array(Image.open(img_path)).astype(np.float32) / 255
-        self.send_string(f'predicting for shape: {self.active_img.shape}')
+        img = np.array(Image.open(img_path)).astype(np.float32) / 255
+        self.send_string(f'predicting for shape: {img.shape}')
         if self.model is not None:
-            prediction = self._predict_np(self.active_img)
-            self.send_string(f'prediction: {prediction.shape}')
+            prediction = self._predict_np(img)
+            pp = self.post_proc_prediction(prediction, img.shape)
+            self.send_string(f'prediction: {img.shape} -> {pp.shape}')
+            self.send_array(pp, 'pred', optional={'imgid': id, 'shape': pp.shape})
+        else:
+            self.send_string('model is not loaded')
 
     def _ping_image(self):
         w, h = 4, 4

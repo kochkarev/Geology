@@ -88,8 +88,8 @@ class AnnotationRenderer {
                 this.renderOpts.inst = 'GT';
                 break;
             case 'PR':
-                this.renderOpts.sem = null;
-                this.renderOpts.inst = 'GT';
+                this.renderOpts.sem = 'PR';
+                this.renderOpts.inst = null;
                 break;
             case 'ERR':
                 this.renderOpts.sem = 'GT';
@@ -161,6 +161,10 @@ class AnnotationRenderer {
             this.clearAnnoSem();
         } else {
             let annoSem = this.xImage.annoSemantic.get(this.renderOpts.sem);
+            if (annoSem == null) {
+                this.clearAnnoSem();
+                return;
+            }
             if (this.annoSemCached !== annoSem) {
                 this.loadAnnoSem(annoSem);
                 this.annoSemCached = annoSem;
@@ -238,6 +242,7 @@ class AnnotationRenderer {
             this.xImage = xImage;
             this.canvAnnoInstTmp.width = this.xImage.w;
             this.canvAnnoInstTmp.height = this.xImage.h;
+            this.renderAnnoSem();
         }
     }
 
@@ -246,7 +251,7 @@ class AnnotationRenderer {
             return;
         let semSrc = this.renderOpts.sem;
         let instSrc = this.renderOpts.inst;
-        if (semSrc !== null && (instSrc === null || this.xImage.annoInst.get(instSrc) == null)) {
+        if (semSrc !== null && this.xImage.annoSemantic.has(semSrc) && (instSrc === null || this.xImage.annoInst.get(instSrc) == null)) {
             this.updateStatisticsSem(this.xImage.annoSemantic.get(semSrc), x, y);
         }
         if (instSrc !== null && this.xImage.annoInst.get(instSrc) != null) {

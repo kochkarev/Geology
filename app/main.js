@@ -26,6 +26,9 @@ function handlerArray(arr, header) {
 		} else if (header.ext == 'inst-map') {
 			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr, 'src': header.src};
 			xImages.updateAnnoInstMap(instMap);
+		} else if (header.ext == 'pred') {
+			let prediction = {'src': 'PR', 'id': header.imgid, 'w': header.shape[1], 'h': header.shape[0], 'mask': arr};
+			xImages.updateAnnoSem(prediction);
 		}
 	} else {
 		console.log(`#arr: shape[${header.shape}]. Got ${arr.length} bytes`);
@@ -39,6 +42,10 @@ function handlerSignal(s) {
 	} else if (s.startsWith('B')) {
 		let imgId = parseInt(s.slice(1));
 		xImages.onAnnotationLoaded(imgId, 'PR');
+	} else if (s.startsWith('L')) {
+		if (parseInt(s.slice(1)) === 1) {
+			xImages.onModelLoaded();
+		}
 	}
 }
 

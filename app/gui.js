@@ -55,3 +55,8 @@ ipcRenderer.on('ximage-update', (e, ximage) => {
     R.updateFromMain(ximage);
 });
 
+ipcRenderer.on('model-loaded', () => {
+    const loadBtn = document.getElementById('btn_load');
+    loadBtn.disabled = true;
+});
+
