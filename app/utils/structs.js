@@ -124,12 +124,11 @@ class XImageCollection {
     }
 	
 	onAnnotationLoaded(xId, source) {
+		// todo  fix this!
 		console.log(`inst annotation for image ${xId} from ${source} received!`);
 		let x = this.items.get(xId);
 		x.annoInst.get(source).setLoaded();
-		if (x.id === this.activeId) {
-			this.sendUpdate(x);
-		}
+		this.sendUpdate(x);
 	}
 
 	onActiveImageUpdate(id) {

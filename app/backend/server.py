@@ -42,7 +42,6 @@ class Server:
 
     def __init__(self, n_classes, patch_s, batch_s, offset):
         self.class_indices = list(range(1, n_classes + 1))
-        self.active_anno_img: np.ndarray = None
         self.active_img: np.ndarray = None
         self.model = None
         self.patch_s = patch_s
@@ -70,14 +69,18 @@ class Server:
         print()
         sys.stdout.flush()
 
-    def create_inst_anno(self, anno_path: str, id: int, source: str, area_thresh=10):
-        self.active_anno_img = np.array(Image.open(anno_path))[:, :, 0]
-        self.send_string(f'annotation updated to {anno_path}, shape: {self.active_anno_img.shape}')
-        inst_map = np.zeros(self.active_anno_img.shape[:2] + (3,), dtype=np.uint8)
+    def create_inst_anno(self, anno_path: str, id: int, source: str, area_thresh):
+        img = np.array(Image.open(anno_path))
+        if img.ndim == 3:
+            img = img[:, :, 0]
+        return self.create_inst_anno_img(img, id, source, area_thresh)
+
+    def create_inst_anno_img(self, img, id: int, source: str, area_thresh):
+        inst_map = np.zeros(img.shape[:2] + (3,), dtype=np.uint8)
         iid = 1
         inst_dropped = 0
         for ci in self.class_indices:
-            class_anno = np.where(self.active_anno_img == ci, 1, 0)
+            class_anno = np.where(img == ci, 1, 0)
             if np.max(class_anno > 0):
                 labeled, n = label(class_anno)
                 for i in range(1, n + 1):
@@ -145,10 +148,13 @@ class Server:
         img = np.array(Image.open(img_path)).astype(np.float32) / 255
         self.send_string(f'predicting for shape: {img.shape}')
         if self.model is not None:
+            # predict segmentation
             prediction = self._predict_np(img)
             pp = self.post_proc_prediction(prediction, img.shape)
             self.send_string(f'prediction: {img.shape} -> {pp.shape}')
             self.send_array(pp, 'pred', optional={'imgid': id, 'shape': pp.shape})
+            # split to instances
+            self.create_inst_anno_img(pp[:, :, 0], id, 'PR', area_thresh=10)
         else:
             self.send_string('model is not loaded')
 
@@ -175,7 +181,7 @@ class Server:
             elif command == 'image-predict':
                 self.predict(msg['path'], int(msg['id']))
             elif command == 'get-annotation':
-                self.create_inst_anno(msg['path'], int(msg['id']), msg['src'])
+                self.create_inst_anno(msg['path'], int(msg['id']), 'GT', area_thresh=10)
             elif command == 'shutdown':
                 break
 
