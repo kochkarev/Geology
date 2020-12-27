@@ -10,24 +10,6 @@ from pathlib import Path
 from utils import split_to_patches, combine_patches
 
 
-# def img_crop_to_layers(data: np.ndarray, n_layers):
-#     q = 2 ** n_layers
-#     h, w = data.shape[:2]
-#     h = h // q * q
-#     w = w // q * q
-#     return data[:h, :w, ...]
-
-
-# def read_image_with_anno(header):
-#     w, h = int(header['width']), int(header['height'])
-#     img_path = header['image_path']
-#     support_level = header['support']
-#     step = header['step']
-#     anno = np.frombuffer(sys.stdin.buffer.read(w * h), dtype=np.uint8, count=w*h)
-#     anno = np.reshape(anno, [h, w])
-#     image = np.array(Image.open(img_path), dtype=np.uint8)
-#     return image, anno, support_level, step
-
 def bbox(img, v):
     rows = np.any(img == v, axis=1)
     cols = np.any(img == v, axis=0)
@@ -37,6 +19,22 @@ def bbox(img, v):
     mask = np.where(mask == v, 1, 0)
     return int(rmin), int(cmin), mask.astype(np.uint8)
 
+
+def read_img(anno_path: str, squeeze=True):
+    img = np.array(Image.open(anno_path))
+    if squeeze and img.ndim == 3:
+        img = img[:, :, 0]
+    return img
+
+
+def remove_dublicate_labels(d: np.ndarray):
+    # dublicated values:
+    # Py/Mrc: 6, 13, 15
+    # Shp: 8, 12
+    d = np.where(d == 13, 6, d)
+    d = np.where(d == 15, 6, d)
+    d = np.where(d == 12, 8, d)
+    return d
 
 class Server:
 
@@ -70,10 +68,7 @@ class Server:
         sys.stdout.flush()
 
     def create_inst_anno(self, anno_path: str, id: int, source: str, area_thresh):
-        img = np.array(Image.open(anno_path))
-        if img.ndim == 3:
-            img = img[:, :, 0]
-        return self.create_inst_anno_img(img, id, source, area_thresh)
+        return self.create_inst_anno_img(read_img(anno_path), id, source, area_thresh)
 
     def create_inst_anno_img(self, img, id: int, source: str, area_thresh):
         inst_map = np.zeros(img.shape[:2] + (3,), dtype=np.uint8)
@@ -136,27 +131,42 @@ class Server:
         # tidying up labels
         res += 100
         res = np.where(res == 100, 0, res)  # 0 : "Other" -> 0 
-        res = np.where(res == 101, 12, res) # 1 : "Sh" -> 12
+        res = np.where(res == 101, 8, res) # 1 : "Sh" -> 8
         res = np.where(res == 102, 6, res)  # 2 : "PyMrc" -> 6
         res = np.where(res == 103, 2, res)  # 3 : "Gl" -> 2
         # convert mask to 3-channels
         res = np.stack([res, res, res], axis=2)
-        return res
+        return res, sh_x # offset should be equal at all 4 sides
     
-
-    def predict(self, img_path: str, id: int):
+    def predict(self, img_path: str, id: int, anno_path=None):
         img = np.array(Image.open(img_path)).astype(np.float32) / 255
         self.send_string(f'predicting for shape: {img.shape}')
         if self.model is not None:
             # predict segmentation
             prediction = self._predict_np(img)
-            pp = self.post_proc_prediction(prediction, img.shape)
+            pp, offset = self.post_proc_prediction(prediction, img.shape)
             self.send_string(f'prediction: {img.shape} -> {pp.shape}')
             self.send_array(pp, 'pred', optional={'imgid': id, 'shape': pp.shape})
             # split to instances
             self.create_inst_anno_img(pp[:, :, 0], id, 'PR', area_thresh=10)
+            # calculate error map if anno_path is not empty
+            if anno_path:
+                gt = read_img(anno_path, squeeze=False)
+                gt = remove_dublicate_labels(gt)
+                err = self.error_map(gt, pp, offset)
+                self.send_string(f'error map: {err.shape}')
+                self.send_array(err, 'err', optional={'imgid': id, 'shape': err.shape})
         else:
             self.send_string('model is not loaded')
+
+    def error_map(self, gt, pred, offset):
+        # error_map codes: 253 - unknown, 254 - correct, 255 - error
+        gt_valid = gt[offset : -offset, offset : -offset, 0]
+        pred_valid = pred[offset : -offset, offset : -offset, 0]
+        err_valid = np.where(gt_valid == pred_valid, 254, 255)
+        err = np.zeros(gt.shape[:2], dtype=np.uint8) + 253
+        err[offset: -offset, offset: -offset] = err_valid
+        return np.stack([err, err, err], axis=2)
 
     def _ping_image(self):
         w, h = 4, 4
@@ -179,7 +189,8 @@ class Server:
             elif command == 'load-model':
                 self.load_model(msg['name'])
             elif command == 'image-predict':
-                self.predict(msg['path'], int(msg['id']))
+                gt_path = msg.get('gt-path', None)
+                self.predict(msg['path'], int(msg['id']), gt_path)
             elif command == 'get-annotation':
                 self.create_inst_anno(msg['path'], int(msg['id']), 'GT', area_thresh=10)
             elif command == 'shutdown':

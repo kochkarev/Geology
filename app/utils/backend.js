@@ -80,8 +80,8 @@ class BackendCommunicator {
 		this._sendJSON({'type': 'load-model', 'name': this.modelName});
 	}
 
-	predict(imageFullPath, imageId) {
-		this._sendJSON({'type': 'image-predict', 'path': imageFullPath, 'id': imageId});
+	predict(imageFullPath, imageId, gtPath) {
+		this._sendJSON({'type': 'image-predict', 'path': imageFullPath, 'id': imageId, 'gt-path': gtPath});
 	}
 
 }

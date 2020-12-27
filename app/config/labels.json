@@ -1,5 +1,8 @@
 {
     "LabelsToClasses": {
+        "255": "Error",
+        "254": "Correct",
+        "253": "Undefined",
         "0": "Background",
         "1": "Ccp",
         "2": "Gl",
@@ -15,10 +18,13 @@
         "12": "Shp",
         "13": "Py/Mrc",
         "14": "Tnt-Ttr",
-        "15": "Pyr/Marc",
+        "15": "Py/Mrc",
         "16": "Kvl"
     },
     "ClassesToColors": {
+        "Error": [255, 0, 0],
+        "Correct": [0, 255, 0],
+        "Undefined": [0, 0, 0],
         "Background" : [0, 0, 0],
         "Ccp": [255, 255, 0],
         "Gl" : [0, 255, 255],

@@ -96,7 +96,7 @@ class XImage {
 	}
 
 	updateAnnoSem(anno) {
-		let a = new SemAnnotation(anno.src, anno.id, anno.mask, anno.w, anno.h);
+		let a = new SemAnnotation(anno.src, anno.id, anno.data, anno.w, anno.h);
 		this.annoSemantic.set(anno.src, a);
 	}
 
@@ -166,7 +166,7 @@ class XImageCollection {
 	predict() {
 		let x = this.items.get(this.activeId);
 		if (x.prediction == null) {
-			this.backend.predict(x.imagePath, x.id);
+			this.backend.predict(x.imagePath, x.id, x.maskPath);
 		}
 	}
 }

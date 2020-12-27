@@ -92,7 +92,7 @@ class AnnotationRenderer {
                 this.renderOpts.inst = 'PR';
                 break;
             case 'ERR':
-                this.renderOpts.sem = 'GT';
+                this.renderOpts.sem = 'ERR';
                 this.renderOpts.inst = null;
                 break;
         }

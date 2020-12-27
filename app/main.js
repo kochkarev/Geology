@@ -27,8 +27,11 @@ function handlerArray(arr, header) {
 			let instMap = {'w': header.shape[1], 'h': header.shape[0], 'imgid': header.imgid, 'data': arr, 'src': header.src};
 			xImages.updateAnnoInstMap(instMap);
 		} else if (header.ext == 'pred') {
-			let prediction = {'src': 'PR', 'id': header.imgid, 'w': header.shape[1], 'h': header.shape[0], 'mask': arr};
+			let prediction = {'src': 'PR', 'id': header.imgid, 'w': header.shape[1], 'h': header.shape[0], 'data': arr};
 			xImages.updateAnnoSem(prediction);
+		} else if (header.ext == 'err') {
+			let errorMap = {'src': 'ERR', 'id': header.imgid, 'w': header.shape[1], 'h': header.shape[0], 'data': arr};
+			xImages.updateAnnoSem(errorMap);
 		}
 	} else {
 		console.log(`#arr: shape[${header.shape}]. Got ${arr.length} bytes`);
