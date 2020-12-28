@@ -1,6 +1,7 @@
 const path = require('path');
 const fs = require('fs');
 const UPNG = require('upng-js');
+const sizeOf = require('image-size');
 
 
 class SemAnnotation {
@@ -60,14 +61,26 @@ class XImage {
 	
 		this.annoInst = new Map();
 		this.annoSemantic = new Map();
-		this.annoSemantic.set('GT', this.loadMask(this.maskPath)); // this updates w, h
+
+		let dims = sizeOf(this.imagePath);
+		this.w = dims.width;
+		this.h = dims.height;
+
+		this.loadMask(this.maskPath, 'GT');
 	}
 
-	loadMask(maskPath) {
-		let mask = UPNG.decode(fs.readFileSync(maskPath));
-		this.w = mask.width;
-		this.h = mask.height;
-		return new SemAnnotation('GT', this.id, mask.data, this.w, this.h);
+	loadMask(maskPath, source) {
+		if (maskPath != null) {
+			let mask = UPNG.decode(fs.readFileSync(maskPath));
+			if (mask.width !== this.w || mask.height !== this.h) {
+				console.error('incompatible mask size');
+				return;
+			}
+			this.w = mask.width;
+			this.h = mask.height;
+			var sem = new SemAnnotation(source, this.id, mask.data, this.w, this.h);
+			this.annoSemantic.set(source, sem);
+		}
 	}
 
 	getAnnoPath(imageFullPath) {
@@ -124,7 +137,6 @@ class XImageCollection {
     }
 	
 	onAnnotationLoaded(xId, source) {
-		// todo  fix this!
 		console.log(`inst annotation for image ${xId} from ${source} received!`);
 		let x = this.items.get(xId);
 		x.annoInst.get(source).setLoaded();
@@ -134,7 +146,7 @@ class XImageCollection {
 	onActiveImageUpdate(id) {
 		this.activeId = id;
 		let x = this.items.get(this.activeId);
-		if (!x.annoInst.has('GT')) {
+		if (x.annoSemantic.has('GT') && !x.annoInst.has('GT')) {
 			this.backend.requestInstAnno(x.maskPath, x.id, 'GT');
 		} else {
 			this.sendUpdate(x);
