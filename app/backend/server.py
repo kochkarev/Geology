@@ -71,6 +71,7 @@ class Server:
         return self.create_inst_anno_img(read_img(anno_path), id, source, area_thresh)
 
     def create_inst_anno_img(self, img, id: int, source: str, area_thresh):
+        self.send_string(f'creatig inst-map for image {id}')
         inst_map = np.zeros(img.shape[:2] + (3,), dtype=np.uint8)
         iid = 1
         inst_dropped = 0
@@ -86,7 +87,7 @@ class Server:
                         continue
                     meta = {'src': source, 'id': iid, 'class': ci, 'y': r, 'x': c, 'imgid': id, 'area': str(mask_area)}
                     self.send_array(mask, ext_type='inst', optional=meta)
-                    inst_map[labeled == i, :] = [iid % 256, iid // 256 % 256, iid // 256 //256]
+                    inst_map[labeled == i, :] = [iid // (256 * 256), (iid // 256) % 256, iid % 256]
                     iid += 1
         self.send_string(f'inst-map: {inst_map.shape}, instances: {iid-1}, dropped: {inst_dropped}, src: {source}')
         self.send_array(inst_map, ext_type='inst-map', optional={'src': source, 'imgid': id})

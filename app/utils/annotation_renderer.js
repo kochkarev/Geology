@@ -201,7 +201,10 @@ class AnnotationRenderer {
             if (instMap == null) {
                 return null;
             }
-            let instId = instMap.data[(ys * this.xImage.w + xs) * 3];
+            let v1 = instMap.data[(ys * this.xImage.w + xs) * 3];
+            let v2 = instMap.data[(ys * this.xImage.w + xs) * 3 + 1];
+            let v3 = instMap.data[(ys * this.xImage.w + xs) * 3 + 2];
+            let instId = v1 * 256 * 256 + v2 * 256 + v3;
             if (instId === 0) {
                 return null;
             }
