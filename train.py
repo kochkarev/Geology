@@ -4,7 +4,7 @@ from tensorflow.keras.utils import to_categorical
 from unet import custom_unet
 from tensorflow.keras.callbacks import ModelCheckpoint, CSVLogger, ReduceLROnPlateau, EarlyStopping
 from tensorflow.keras.optimizers import Adam
-from metrics import iou, iou_multiclass
+from metrics import iou_tf, iou_per_class
 from utils import plot_segm_history
 import os
 import numpy as np
@@ -71,11 +71,11 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
         optimizer=Adam(), 
         loss = custom_loss,
         # loss = 'categorical_crossentropy',
-        metrics=[iou]
+        metrics=[iou_tf]
     )
 
     if model_name:
-        model = load_model(os.path.join(train_params["model_path"], model_name), custom_objects={'iou' : iou, 'weighted_dice_loss' : custom_loss})
+        model = load_model(os.path.join(train_params["model_path"], model_name), custom_objects={'iou' : iou_tf, 'weighted_dice_loss' : custom_loss})
         initial_epoch = int(model_name.split('_')[1])
         print(f'Model {model_name} loaded. Continue training from epoch {initial_epoch + 1}')
 
