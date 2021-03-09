@@ -1,4 +1,4 @@
-import tensorflow as tf
+import tensorflow_addons as tfa
 from tensorflow.keras.models import Model
 from tensorflow.keras.layers import BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Input, concatenate
 from tensorflow.keras.initializers import GlorotNormal
@@ -16,20 +16,21 @@ def conv2d_block(
     padding='same'):
     
     c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=kernel_initializer, padding=padding) (inputs)
-    if use_batch_norm:
-        c = BatchNormalization()(c)
+    # if use_batch_norm:
+        # c = tfa.layers.GroupNormalization(groups=16)(c)
+        # c = BatchNormalization()(c)
     c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=kernel_initializer, padding=padding) (c)
-    if use_batch_norm:
-        c = BatchNormalization()(c)
+    # if use_batch_norm:
+        # c = tfa.layers.GroupNormalization(groups=16)(c)
+        # c = BatchNormalization()(c)
     return c
 
 def custom_unet(
     input_shape,
-    n_classes=1,
-    use_batch_norm=True, 
-    upsample_mode='deconv', # 'deconv' or 'simple' 
+    n_classes,
+    use_batch_norm, 
     filters=16,
-    n_layers=4, # 4 originally
+    n_layers=4,
     output_activation='sigmoid'): # 'sigmoid' or 'softmax'
     
     inputs = Input(input_shape)

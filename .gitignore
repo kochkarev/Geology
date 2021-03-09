@@ -12,4 +12,8 @@ models
 train_params.json
 app/node_modules/
 app/backend/models/
+data/
+data_depr/
+cache/
+output/
 *.code-workspace

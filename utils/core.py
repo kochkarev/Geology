@@ -1,15 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from data_utils import get_pairs_from_paths
 import os
 from PIL import Image
-import shutil
 from config import classes_colors, classes_mask
 from tensorflow.keras.utils import to_categorical
-from skimage.transform.integral import integral_image
-from scipy.ndimage.morphology import distance_transform_edt
-from time import time
-import json
+from pathlib import Path
 
 def plot_segm_history(history, output_path, metrics=['iou'], losses=['loss']):
     # summarize history for iou
@@ -42,26 +37,18 @@ def to_heat_map(img, name='jet'):
     heat_img = cmap(img)[..., 0:3]
     return (heat_img * 255).astype(np.uint8)
 
-class_colors = [hex_to_rgb(classes_colors[color]) for color in classes_colors]
 
 def colorize_mask(mask, n_classes):
-
-    color_mask = np.zeros_like(mask)
-    colors = class_colors
-
+    colorized = np.zeros_like(mask)
+    colors = [hex_to_rgb(color) for color in classes_colors]
     for c in range(n_classes):
         if mask.ndim == 3:
-            color_mask[:,:,0] += ((mask[:,:,0] == c) * (colors[c][0])).astype('uint8')
-            color_mask[:,:,1] += ((mask[:,:,0] == c) * (colors[c][1])).astype('uint8')
-            color_mask[:,:,2] += ((mask[:,:,0] == c) * (colors[c][2])).astype('uint8')
+            colorized[:,:,0] += ((mask[:,:,0] == c) * (colors[c][0])).astype('uint8')
+            colorized[:,:,1] += ((mask[:,:,0] == c) * (colors[c][1])).astype('uint8')
+            colorized[:,:,2] += ((mask[:,:,0] == c) * (colors[c][2])).astype('uint8')
         elif mask.ndim == 2:
-            color_mask += ((mask == c) * (colors[c][2])).astype('uint8')
-
-    return color_mask
-
-def contrast_mask(mask : np.ndarray):
-    k = 255 / np.max(mask)
-    return k * mask
+            colorized += ((mask == c) * (colors[c][2])).astype('uint8')
+    return colorized
 
 def create_error_mask(img : np.ndarray, pred : np.ndarray, num_classes : int = 4):
 
@@ -99,24 +86,18 @@ def error_per_class(gt: np.ndarray, pred: np.ndarray, n_classes: int):
         results.append(np.sum(mask) / (np.sum(gt[...,i])))
     return results
 
-def visualize_segmentation_result(images, masks, preds=None, names=None, n_classes=4, output_path=None, epoch=0):
-    output_path_name = os.path.join(output_path, f'epoch_{epoch+1}')
-    err_log_name = os.path.join(output_path_name, "err_log.txt")
+def visualize_segmentation_result(images, masks, preds, names, n_classes, output_path: Path, epoch):
+    output_path_name = output_path / f'epoch_{epoch+1}'
+    err_log_name = output_path_name / "err_log.txt"
     if os.path.exists(err_log_name):
         os.remove(err_log_name)
     err_log = open(err_log_name, "a+")
     alpha = 0.75
 
     for i in range(images.shape[0]):
-        Image.fromarray((images[i] * 255).astype(np.uint8)).save(
-            os.path.join(output_path_name, f'image_{i + 1}_src.jpg')
-        )
-        Image.fromarray(colorize_mask(np.dstack((masks[i],masks[i],masks[i])), n_classes=n_classes).astype(np.uint8)).save(
-            os.path.join(output_path_name, f'image_{i + 1}_gt.jpg')
-        )
         if preds is not None:
             Image.fromarray(colorize_mask(np.dstack((preds[i],preds[i],preds[i])), n_classes=n_classes).astype(np.uint8)).save(
-                os.path.join(output_path_name, f'image_{i + 1}_pred.jpg')
+                output_path_name / f'image_{i + 1}_pred.jpg'
             )            
             err_mask = create_error_mask(masks[i], preds[i], num_classes=n_classes)
 
@@ -127,20 +108,11 @@ def visualize_segmentation_result(images, masks, preds=None, names=None, n_class
 
             err_vis = visualize_error_mask(err_mask)
             Image.fromarray(err_vis.astype(np.uint8)).save(
-                os.path.join(output_path_name, f'image_{i + 1}_error.jpg')
+                output_path_name / f'image_{i + 1}_error.jpg'
             )
-            Image.fromarray((alpha*255*images[i] + (1 - alpha)*err_vis).astype(np.uint8)).save(
-                os.path.join(output_path_name, f'image_{i + 1}_overlay.jpg')
+            Image.fromarray((alpha*images[i] + (1 - alpha)*err_vis).astype(np.uint8)).save(
+                output_path_name / f'image_{i + 1}_overlay.jpg'
             )
-
-def visualize_pred_heatmaps(preds, n_classes, output_path, epoch):
-    
-    output_path_name = os.path.join(output_path, f'epoch_{epoch+1}', 'pred_heatmaps')
-    os.makedirs(output_path_name, exist_ok=True)
-
-    for i, pred in enumerate(preds):
-        for cl in range(n_classes):
-            Image.fromarray(to_heat_map(pred[...,cl])).save(os.path.join(output_path_name, f'image_{i + 1}_{classes_mask[cl]}.jpg'))
 
 def visualize_prediction_result(image, predicted, image_name, figsize=4, output_path=None):
 
@@ -191,42 +163,68 @@ def visualize_line_detection_result(orig_img, edges, hough_orig, hough_edges, nu
 
     plt.close()
     
-def plot_metrics_history(metrics_values: dict, output_path: str):
+# def plot_metrics_history(metrics_values: dict, output_path: Path):
+#     for metric in metrics_values.keys():
+#         lists = sorted(metrics_values[metric].items())
+#         x, y = zip(*lists)
+#         fig = plt.figure(figsize=(12,6))
+#         plt.plot(x, y, linewidth=3)
+#         plt.suptitle(metric + ' metric over epochs', fontsize=20)
+#         plt.ylabel('metric', fontsize=20)
+#         plt.xlabel('epoch', fontsize=20)
+#         plt.legend([metric], loc='center right', fontsize=15)
+#         fig.savefig(output_path / (metric + '.jpg'))
 
-    for metric in metrics_values.keys():
+# def plot_per_class_history(metrics_values: dict, output_path: Path):
+#     epochs = len(metrics_values[0])
+#     fig = plt.figure(figsize=(12,6))
+#     i = 0
+#     for cl in metrics_values.keys():
+#         args = [x+1 for x in range(epochs)]
+#         vals = [y for y in metrics_values[cl]]
+#         data = {x : y for x, y in zip(args, vals)}
+#         lists = sorted(data.items())
+#         x, y = zip(*lists)
+#         plt.plot(x, y, linewidth=3, color=classes_colors[cl])
+#         i +=1
+#     plt.suptitle('metric per class over epochs', fontsize=20)
+#     plt.ylabel('metric', fontsize=20)
+#     plt.xlabel('epoch', fontsize=20)
+#     plt.legend([classes_mask[j] for j in range(i)], loc='center right', fontsize=15)
+#     fig.savefig(output_path / 'per_class_metric.jpg')
 
-        lists = sorted(metrics_values[metric].items())
-        x, y = zip(*lists)
-
-        fig = plt.figure(figsize=(12,6))
-        plt.plot(x, y, linewidth=3)
-        plt.suptitle(metric + ' metric over epochs', fontsize=20)
-        plt.ylabel('metric', fontsize=20)
-        plt.xlabel('epoch', fontsize=20)
-        plt.legend([metric], loc='center right', fontsize=15)
-        fig.savefig(os.path.join(output_path, metric + '.jpg'))
-
-def plot_per_class_history(metrics_values: dict, output_path: str):
-
-    epochs = len(metrics_values[0])
+def plot_metrics(metrics, metric_name, output_path: Path):
+    epochs = len(metrics)
+    n_classes = len(metrics[0]) - 1
+    
+    # --- per class metric ---
     fig = plt.figure(figsize=(12,6))
-    i = 0
-    for class_num in metrics_values.keys():
-        args = [x+1 for x in range(epochs)]
-        vals = [y for y in metrics_values[class_num]]
-        data = {x : y for x, y in zip(args, vals)}
-        lists = sorted(data.items())
-        x, y = zip(*lists)
-        plt.plot(x, y, linewidth=3, color=classes_colors[classes_mask[class_num]])
-        i +=1
-
-    plt.suptitle('metric per class over epochs', fontsize=20)
-    plt.ylabel('metric', fontsize=20)
+    # ax = plt.axes()
+    # ax.set_facecolor('white')
+    for cl in range(n_classes):
+        x = [x+1 for x in range(epochs)]
+        y = [metrics[i][cl] for i in range(epochs)]
+        plt.plot(x, y, color=classes_colors[cl])
+    # plt.suptitle(f'{metric_name} per class over epochs', fontsize=20)
+    plt.ylabel(f'{metric_name}', fontsize=20)
     plt.xlabel('epoch', fontsize=20)
-    plt.legend([classes_mask[j] for j in range(i)], loc='center right', fontsize=15)
-    fig.savefig(os.path.join(output_path, 'per_class_metric.jpg'))
+    plt.legend([classes_mask[j] for j in range(n_classes)], loc='center right', fontsize=15)
+    fig.savefig(output_path / f'{metric_name}_per_class.png')
+    
+    # --- all class metric ---
+    fig = plt.figure(figsize=(12,6))
+    # ax = plt.axes()
+    # ax.set_facecolor('white')
+    x = [x+1 for x in range(epochs)]
+    y = [metrics[i][-1] for i in range(epochs)]
+    plt.plot(x, y)
+    # plt.suptitle(f'{metric_name} over epochs', fontsize=20)
+    plt.ylabel(f'{metric_name}', fontsize=20)
+    plt.xlabel('epoch', fontsize=20)
+    fig.savefig(output_path / f'{metric_name}.png')
 
-def plot_lrs(lrs: list, output_path: str):
+
+def plot_lrs(lrs: list, output_path: Path):
 
     plt.style.use("ggplot")
     fig = plt.figure()
@@ -234,53 +232,5 @@ def plot_lrs(lrs: list, output_path: str):
     plt.title("Learning Rate Schedule")
     plt.xlabel("Epoch #")
     plt.ylabel("Learning Rate")
-    fig.savefig(os.path.join(output_path, 'lrs.jpg'))
+    fig.savefig(output_path / 'lrs.jpg')
     plt.close()
-
-def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path: str, output_path: str, vis_path: str, visualize: bool = False):
-
-    classes = [cl for cl in classes_mask.values()]
-    mask = np.array(Image.open(os.path.join(input_path, input_img)))[:,:,0]
-    masks = to_categorical(mask, num_classes=num_classes, dtype=np.uint8)
-
-    input_img = input_img.replace('_NEW.png', '')
-    dts = []
-    for i in range(num_classes):
-        dt = distance_transform_edt(1-masks[:,:,i])
-        dt /= np.max(dt)
-        dt = 1 - dt
-        dts.append(dt)
-        if visualize:
-            Image.fromarray(to_heat_map(dt)).save(os.path.join(vis_path, f"DT_{classes[i]}_{input_img}.jpg"))
-        
-    integrals = [np.pad(integral_image(dt), [(1,1),(1,1)], mode='constant') for dt in dts]
-    
-    for integral, cl in zip(integrals, classes):
-        p = np.zeros_like(integral)
-        p = p[:-patch_size - 1, :-patch_size - 1]
-        p = integral[:-patch_size, :-patch_size] + integral[patch_size:, patch_size:] - integral[:-patch_size, patch_size:] - integral[patch_size:, :-patch_size]
-        p = np.pad(p, [(0, patch_size - 1), (0, patch_size - 1)], mode='constant')
-        p = p[:-patch_size - 1, :-patch_size - 1]
-        max_p = np.max(p)
-        min_p = np.min(p)
-        p = p - min_p
-        p = p / (max_p - min_p)
-        p = p ** 4
-        # p = np.where(p > 0.5*np.max(p), p, 0)
-        p = np.pad(p, [(0, patch_size), (0, patch_size)], mode='constant')
-        if visualize:
-            Image.fromarray(to_heat_map(p)).save(os.path.join(vis_path, f"HeatMap_{cl}_{input_img}.jpg"))
-        p = p / np.sum(p)
-        np.savez_compressed(os.path.join(output_path, cl + "__" + input_img), p)
-
-def create_heatmaps(num_classes: int, patch_size: int, input_path: str, output_path: str, vis_path: str, visualize: bool = False):
-
-    with open(os.path.join("input", "dataset.json")) as dataset_json:
-        names = json.load(dataset_json)
-    marked_images = names["BoxA_DS1"]["marked"]
-
-    print('Generating heatmaps..')
-    for mask in marked_images:
-        print(f'    Creating heatmap for {mask}')
-        create_heatmap(num_classes, patch_size, mask.replace(".jpg", "_NEW.png"), input_path, output_path, vis_path, visualize)
-    print(f'Heatmap ndarrays saved in {output_path}. Visualization saved in {vis_path}')

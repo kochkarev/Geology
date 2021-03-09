@@ -1,158 +1,98 @@
-import tensorflow as tf
-from tensorflow.keras.callbacks import Callback
-from utils import visualize_segmentation_result, plot_metrics_history, colorize_mask, plot_per_class_history, contrast_mask, plot_lrs, visualize_pred_heatmaps
-import numpy as np
-from data_utils import combine_patches, split_to_patches
-from metrics import calc_metrics
-from PIL import Image
-from statistics import mean
-import os
-import matplotlib.pyplot as plt
-import tensorflow.keras.backend as K
+from pathlib import Path
 from time import time
-from config import classes_mask, train_params
-from datetime import datetime
-import pickle
-from tensorflow.keras.models import load_model
-from metrics import iou
+from typing import List
+
+import numpy as np
+import tensorflow.keras.backend as K
+from tensorflow.keras.callbacks import Callback
+
+from metrics import calc_metrics
+from utils.core import plot_lrs, plot_metrics, visualize_segmentation_result
+
 
 class TestResults(Callback):
-    def __init__(self, images, masks, names, model, n_classes, batch_size, patch_size, overlay, offset, output_path, all_metrics : list):
+    def __init__(self, images, masks, names, predict_func, n_classes, batch_size, patch_size, overlay, offset,
+                 output_path: Path, all_metrics: list, vis: bool):
         self.images = images
         self.masks = masks
         self.names = names
-        self.model = model
+        self.predict_func = predict_func
         self.n_classes = n_classes
         self.batch_size = batch_size
         self.patch_size = patch_size
         self.overlay = overlay
         self.offset = offset
         self.output_path = output_path
-        if not os.path.exists(output_path):
-            os.makedirs(output_path)
         self.all_metrics = all_metrics
-        self.metrics_results = {i : dict() for i in all_metrics}
-        self.metrics_per_cls_res = {i : [] for i in range(n_classes)}
+        self.vis = vis
+        self.metrics_results = {i : [] for i in all_metrics}
         self.lrs = []
 
-    def predict_image(self, img):
-        patches = split_to_patches(img, self.patch_size, self.offset, overlay = 0.25)
-        init_patch_len = len(patches)
+    def _average_metrics(self, metrics):
+        n = len(metrics)
+        lh = len(metrics[0])
+        return [sum(m[f] for m in metrics) / n for f in range(lh)]
 
-        while (len(patches) % self.batch_size != 0):
-            patches.append(patches[-1])
-        pred_patches = []
+    def _print_per_class_metric(self, metric_name, metric_val, log):
+        n = len(metric_val)
+        for i in range(n - 1):
+            s = f'{metric_name} for class {i}: {metric_val[i]:.5f}'
+            print(s)
+            log.write(s + '\n')
+        s = f'{metric_name} for all classes: {metric_val[-1]:.5f}'
+        print(s), log.write(s + '\n')
 
-        for i in range(0, len(patches), self.batch_size):
-            batch = np.stack(patches[i : i+self.batch_size])
-            prediction = self.model.predict_on_batch(batch)
-            pred_patches.extend(np.squeeze(np.split(prediction, self.batch_size)))
-        
-        pred_patches = pred_patches[:init_patch_len]
-        result = combine_patches(pred_patches, self.patch_size, self.offset, overlay=0.25, orig_shape=(img.shape[0], img.shape[1], pred_patches[0].shape[2]))
-        # print(f'in predict: {np.min(result)} : {np.max(result)}')
-        return result
-    
     def on_epoch_end(self, epoch, logs=None):
-        output_path_name = os.path.join(self.output_path, f'epoch_{epoch+1}')
-        os.makedirs(output_path_name, exist_ok=True)
-        metrics_log_name = os.path.join(output_path_name, "metrics.txt")
-        if os.path.exists(metrics_log_name):
-            os.remove(metrics_log_name)
-        metrics_log = open(metrics_log_name, "a+")
+        output_path_name = self.output_path / f'epoch_{epoch+1}'
+        output_path_name.mkdir(exist_ok=True)
+        metrics_log_name = output_path_name / 'metrics.txt'
+        log = open(metrics_log_name, "a+")
         
         self.lrs.append(K.eval(self.model.optimizer.lr))
 
-        predicted = []
-        all_metrics = ['iou']
-        metrics_values = {i : 0 for i in all_metrics}
-        tmp_metrics_per_cls_res = {i : [] for i in range(self.n_classes)}
+        preds = []
+        metrics_per_image = {m: [] for m in self.all_metrics}
         t1 = time()
         ii = 0
         for image, mask in zip(self.images, self.masks):
-            s = f'Testing on {ii+1} of {self.images.shape[0]}'
-            print(s)
-            metrics_log.write('\n' + s + '\n')
-            pred = self.predict_image(image)
-            predicted.append(pred)
-
-            metrics = calc_metrics(mask[self.offset:-self.offset,self.offset:-self.offset,...], 
-                                        pred, all_metrics, self.n_classes)
-            for metric in metrics:
-                s = 'Metrics for each class:'
-                print(s)
-                metrics_log.write(s + '\n')
-                i = 0
-                for value in metric[1]:
-                    s = f"{metric[0]} for {classes_mask[i]} : {value}"
-                    print(s)
-                    metrics_log.write(s + '\n')
-                    tmp_metrics_per_cls_res[i].append(value)
-                    i +=1
-                metrics_values[metric[0]] += sum(metric[1]) / len(metric[1])
+            s = f'Testing on {ii+1} of {len(self.images)}'
+            print('\n' + s), log.write('\n' + s + '\n')
+            # --- do prediction ---
+            pred = self.predict_func(image, self.overlay)
+            preds.append(pred)
+            mask_cropped = mask[self.offset : -self.offset, self.offset : -self.offset, ...]
+            # --- calc metrics ---
+            metric_maps = calc_metrics(mask_cropped, pred, self.all_metrics, self.n_classes)
+            s = 'Metrics:'
+            print('\n' + s), log.write(s + '\n')
+            for metric_name, metric_res in metric_maps.items():
+                self._print_per_class_metric(metric_name, metric_res, log)
+                metrics_per_image[metric_name].append(metric_res)
             ii += 1
 
-        for i in range(self.n_classes):
-            self.metrics_per_cls_res[i].append(mean(tmp_metrics_per_cls_res[i]))
-
         s = 'Average metrics values:'
-        print(s)
-        metrics_log.write('\n' + s + '\n')
-        for metrics_name in metrics_values.keys():
-            self.metrics_results[metrics_name][epoch+1] = metrics_values[metrics_name] / self.images.shape[0]
-            s = f'{metrics_name} : {(metrics_values[metrics_name] / self.images.shape[0])}'
-            print(s)
-            metrics_log.write(s + '\n')
+        print(s), log.write('\n' + s + '\n')
+        for metrics_name in metrics_per_image:
+            metrics_avg = self._average_metrics(metrics_per_image[metric_name])
+            self.metrics_results[metrics_name].append(metrics_avg)
+            self._print_per_class_metric(metric_name, metrics_avg, log)
+
+        print('{"metric": "iou_all_test", "value":' + str(metrics_avg[-1]) + ', "epoch": ' + str(epoch + 1) + '}')
 
         t2 = time()
         print(f'Prediction completed in {t2-t1} seconds')
 
         print('Processing visualization:')
-        visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] for i in self.images]),
+        if self.vis:
+            visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] for i in self.images]),
                     [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=2) for i in self.masks],
-                    [np.argmax(i, axis=2) for i in predicted], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+                    [np.argmax(i, axis=2) for i in preds], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+            # visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
         
-        visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
-        plot_metrics_history(self.metrics_results, self.output_path)
-        plot_per_class_history(self.metrics_per_cls_res, self.output_path)
+        for metric_name in self.all_metrics:
+            plot_metrics(self.metrics_results[metric_name], metric_name, self.output_path)
+        # plot_metrics_history(self.metrics_results, self.output_path)
+        # plot_per_class_history(self.metrics_per_cls_res, self.output_path)
         plot_lrs(self.lrs, self.output_path)
         t3 = time()
         print(f'Visualization completed in {t3-t2} seconds')
-
-    def on_train_begin(self, logs=None):
-        params_name = os.path.join(self.output_path, "train_params.txt")
-        if os.path.exists(params_name):
-            os.remove(params_name)
-        train_log = open(params_name, "a+")
-
-        train_log.write(f'Training begin at {datetime.now().strftime("%d/%m/%Y %H:%M:%S")}\n\n')
-
-        for param in train_params:
-            train_log.write(param + '=' + str(train_params[param]) + '\n')
-
-class AdvancedCheckpoint(Callback):
-    def __init__(self, model, save_best_only: bool, verbose: bool, output_path: str):
-        self.model = model
-        self.save_best_only = save_best_only
-        self.output_path = output_path
-        self.verbose = verbose
-        self.best_loss_value = float('Inf')
-
-    def on_epoch_end(self, epoch, logs=None):
-        cur_loss = float(logs['loss'])
-        if (not self.save_best_only) or (self.save_best_only and cur_loss < self.best_loss_value):
-            self.best_loss_value = cur_loss
-            model_name = f'model_{epoch+1:02d}_{cur_loss:.3f}.hdf5'
-            # self.model.save_weights(os.path.join(self.output_path, model_name))
-            self.model.save(os.path.join(self.output_path, model_name))
-            if self.verbose:
-                print(f'Model weights saved in {os.path.join(self.output_path, model_name)}')
-            symbolic_weights = getattr(self.model.optimizer, 'weights')
-            weights_values = K.batch_get_value(symbolic_weights)
-            weights_name = f'optimizer_{epoch+1:02d}_{cur_loss:.3f}.pkl'
-            with open(os.path.join(self.output_path, weights_name), 'wb+') as f:
-                pickle.dump(weights_values, f)
-            if self.verbose:
-                print(f'Model optimizer saved in {os.path.join(self.output_path, weights_name)}')
-        else:
-            print('Skip saving model')

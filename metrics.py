@@ -1,51 +1,35 @@
-import tensorflow as tf
+from typing import Dict, List
 from tensorflow.keras import backend as K
 import numpy as np
-from tensorflow import math
-# from tensorflow_core.python.layers.core import flatten
-# from tensorflow_core import reduce_sum
 
-def calc_metrics(mask_gt: np.ndarray, mask_pred: np.ndarray, metrics: list, num_classes: int):
+def calc_metrics(gt: np.ndarray, pred: np.ndarray, metrics: List[str], n_classes: int) -> Dict[str, List[float]]:
+    assert gt.shape == pred.shape, f'Shapes of gt and pred must be equal. gt: {gt.shape}, pred: {pred.shape}'
+    metric_mappings = {
+        'iou': iou_all,
+    }
+    res = dict()
+    for metric_name in metrics:
+        res[metric_name] = metric_mappings[metric_name](gt, pred, n_classes)
+    return res
 
-    assert mask_gt.shape == mask_pred.shape, 'Shapes of gt and pred must be equal in calc_metrics'
-
-    metrics_dict = {'iou' : iou_multiclass}
-    results = []
-
-    for metric in metrics:
-        results.append((metric, metrics_dict[metric](mask_gt, mask_pred, num_classes)))
-
-    return results
-
-def iou(y_true, y_pred, smooth=1.):
+def iou_tf(y_true, y_pred, smooth=1.):
     y_true_f = K.flatten(y_true)
     y_pred_f = K.flatten(y_pred)
     intersection = K.sum(y_true_f * y_pred_f)
     return (intersection + smooth) / (K.sum(y_true_f) + K.sum(y_pred_f) - intersection + smooth)
 
-def iou_binary(y_true, y_pred):
+def iou(y_true, y_pred):
     smooth = 1.
     y_true_f = y_true.flatten()
     y_pred_f = y_pred.flatten()
     intersection = np.sum(y_true_f * y_pred_f)
     return (intersection + smooth) / (np.sum(y_true_f) + np.sum(y_pred_f) - intersection + smooth)
 
-def iou_multiclass(y_true, y_pred, num_classes):
-    results = []
-    for i in range(num_classes):
-        results.append(iou_binary(y_true[...,i], y_pred[...,i]))
-    return results
+def iou_per_class(y_true, y_pred, n_classes):
+    iou_vals = []
+    for i in range(n_classes):
+        iou_vals.append(iou(y_true[...,i], y_pred[...,i]))
+    return iou_vals
 
-def dice(y_true, y_pred):
-    smooth = 1.
-    y_true_f = tf.cast(K.flatten(y_true), tf.float32)
-    y_pred_f = tf.cast(K.flatten(y_pred), tf.float32)
-    intersection = math.reduce_sum(y_true_f * y_pred_f)
-    return (2. * intersection + smooth) / (math.reduce_sum(y_true_f) + math.reduce_sum(y_pred_f) + smooth)
-
-def weighted_dice(y_true, y_pred, weight):
-    smooth = 1.
-    w, m1, m2 = weight * weight, y_true, y_pred
-    intersection = (m1 * m2)
-    score = (2. * math.reduce_sum(w * intersection) + smooth) / (math.reduce_sum(w * m1) + math.reduce_sum(w * m2) + smooth)
-    return score
+def iou_all(y_true, y_pred, n_classes):
+    return iou_per_class(y_true, y_pred, n_classes) + [iou(y_true, y_pred)]
