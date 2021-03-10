@@ -25,13 +25,13 @@ class TestResults(Callback):
         self.output_path = output_path
         self.all_metrics = all_metrics
         self.vis = vis
-        self.metrics_results = {i : [] for i in all_metrics}
+        self.metrics_acc = {i: [] for i in all_metrics}
         self.lrs = []
 
     def _average_metrics(self, metrics):
-        n = len(metrics)
+        n_imgs = len(metrics)
         lh = len(metrics[0])
-        return [sum(m[f] for m in metrics) / n for f in range(lh)]
+        return [sum(m[f] for m in metrics) / n_imgs for f in range(lh)]
 
     def _print_per_class_metric(self, metric_name, metric_val, log):
         n = len(metric_val)
@@ -62,35 +62,35 @@ class TestResults(Callback):
             preds.append(pred)
             mask_cropped = mask[self.offset : -self.offset, self.offset : -self.offset, ...]
             # --- calc metrics ---
-            metric_maps = calc_metrics(mask_cropped, pred, self.all_metrics, self.n_classes)
+            metric_maps = calc_metrics(mask_cropped, pred, self.all_metrics)
             s = 'Metrics:'
             print('\n' + s), log.write(s + '\n')
-            for metric_name, metric_res in metric_maps.items():
-                self._print_per_class_metric(metric_name, metric_res, log)
-                metrics_per_image[metric_name].append(metric_res)
+            for metric_name, metric_vals in metric_maps.items():
+                self._print_per_class_metric(metric_name, metric_vals, log)
+                metrics_per_image[metric_name].append(metric_vals)
             ii += 1
 
         s = 'Average metrics values:'
         print(s), log.write('\n' + s + '\n')
-        for metrics_name in metrics_per_image:
-            metrics_avg = self._average_metrics(metrics_per_image[metric_name])
-            self.metrics_results[metrics_name].append(metrics_avg)
-            self._print_per_class_metric(metric_name, metrics_avg, log)
+        for metric_name, metric_vals in metrics_per_image.items():
+            metric_avg = self._average_metrics(metric_vals)
+            self.metrics_acc[metric_name].append(metric_avg)
+            self._print_per_class_metric(metric_name, metric_avg, log)
 
-        print('{"metric": "iou_all_test", "value":' + str(metrics_avg[-1]) + ', "epoch": ' + str(epoch + 1) + '}')
+        print('{"metric": "iou_all_test", "value":' + str(metric_avg[-1]) + ', "epoch": ' + str(epoch + 1) + '}')
 
         t2 = time()
         print(f'Prediction completed in {t2-t1} seconds')
 
         print('Processing visualization:')
         if self.vis:
-            visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] for i in self.images]),
-                    [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=2) for i in self.masks],
-                    [np.argmax(i, axis=2) for i in preds], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
+            visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] * 256 for i in self.images]),
+                    [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=-1) for i in self.masks],
+                    [np.argmax(i, axis=-1) for i in preds], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
             # visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
         
         for metric_name in self.all_metrics:
-            plot_metrics(self.metrics_results[metric_name], metric_name, self.output_path)
+            plot_metrics(self.metrics_acc[metric_name], metric_name, self.output_path)
         # plot_metrics_history(self.metrics_results, self.output_path)
         # plot_per_class_history(self.metrics_per_cls_res, self.output_path)
         plot_lrs(self.lrs, self.output_path)

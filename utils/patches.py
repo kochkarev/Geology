@@ -2,8 +2,8 @@ import numpy as np
 
 
 def split_to_patches(img: np.ndarray, patch_size: int, offset: int, overlay):
-
-    assert overlay == 0 or overlay == 0.5 or overlay == 0.25, 'Overlay should be 100, 50 or 25%'
+    
+    assert overlay in (0, 0.5, 0.25), 'Overlay should be 100, 50 or 25%'
     
     overlay = 1 - overlay
     eff_size = patch_size - 2 * offset
@@ -30,7 +30,7 @@ def split_to_patches(img: np.ndarray, patch_size: int, offset: int, overlay):
 
 def combine_patches(patches, patch_size, offset, overlay, orig_shape):
 
-    assert (overlay == 0 or overlay == 0.5 or overlay == 0.25), ('Overlay should be 100, 50 or 25%')
+    assert overlay in (0, 0.5, 0.25), 'Overlay should be 100, 50 or 25%'
     
     overlay = 1 - overlay
     eff_size = patch_size - 2 * offset
@@ -43,7 +43,6 @@ def combine_patches(patches, patch_size, offset, overlay, orig_shape):
     if (orig_shape[1] - patch_size) % shift != 0:
         new_w = int(np.ceil((orig_shape[1] - patch_size) / shift)) * shift + patch_size
 
-    # result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=patches[0].dtype)
     result = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=np.float32)
     weights = np.zeros(shape=(new_h, new_w, orig_shape[2]), dtype=np.uint8)
     i, j, k = 0, 0, 0

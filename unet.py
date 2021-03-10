@@ -1,6 +1,8 @@
+from typing import List
+import tensorflow as tf
 import tensorflow_addons as tfa
 from tensorflow.keras.models import Model
-from tensorflow.keras.layers import BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Input, concatenate
+from tensorflow.keras.layers import Reshape, BatchNormalization, Conv2D, Conv2DTranspose, MaxPooling2D, Input, concatenate
 from tensorflow.keras.initializers import GlorotNormal
 
 def upsample_conv(filters, kernel_size, strides, padding):
@@ -16,14 +18,40 @@ def conv2d_block(
     padding='same'):
     
     c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=kernel_initializer, padding=padding) (inputs)
-    # if use_batch_norm:
+    if use_batch_norm:
         # c = tfa.layers.GroupNormalization(groups=16)(c)
-        # c = BatchNormalization()(c)
+        c = BatchNormalization()(c)
     c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=kernel_initializer, padding=padding) (c)
-    # if use_batch_norm:
+    if use_batch_norm:
         # c = tfa.layers.GroupNormalization(groups=16)(c)
-        # c = BatchNormalization()(c)
+        c = BatchNormalization()(c)
     return c
+
+def weightedLoss(originalLossFunc, weightsList: List):
+
+    def lossFunc(gt, pred):
+        # get class indexes
+        classSelectors = tf.cast(tf.math.argmax(gt, axis=-1), tf.int32)
+
+        # true(1) if the class index is equal to the weight index   
+        classSelectors = [tf.math.equal(i, classSelectors) for i in range(len(weightsList))]
+
+        # casting boolean to float for calculations  
+        # each tensor in the list contains 1 where ground true class is equal to its index 
+        # if you sum all these, you will get a tensor full of ones. 
+        classSelectors = [tf.cast(x, tf.float32) for x in classSelectors]
+
+        # for each of the selections above, multiply their respective weight
+        weights = [sel * w for sel, w in zip(classSelectors, weightsList)] 
+
+        # sums all the selections
+        weightMultiplier = weights[0]
+        for i in range(1, len(weights)):
+            weightMultiplier = weightMultiplier + weights[i]
+
+        return originalLossFunc(gt, pred) * weightMultiplier
+
+    return lossFunc
 
 def custom_unet(
     input_shape,

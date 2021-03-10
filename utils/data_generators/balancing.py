@@ -44,7 +44,7 @@ class AutoBalancedPatchGenerator:
 
     def _load_imgs(self):
         print('\t Loading images...')
-        return [np.array(Image.open(p)).astype(np.float) / 256 for p in self.img_paths]
+        return [np.array(Image.open(p)).astype(np.float32) / 256 for p in self.img_paths]
     
     def _load_masks(self):
         print('\t Loading masks...')
@@ -92,7 +92,7 @@ class AutoBalancedPatchGenerator:
         res = []
         for m in prob_map:
             if m is not None:
-                mbf = m.astype(np.float)
+                mbf = m.astype(np.float32)
                 new_m = (mbf / np.max(mbf)) ** (1 - 0.9 * distancing)
                 new_m /= np.sum(new_m)
                 res.append(new_m.astype(np.float16))

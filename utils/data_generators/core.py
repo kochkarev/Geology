@@ -60,7 +60,7 @@ class SimpleBatchGenerator:
             x.append(img)
             y.append(mask)
             if len(x) == self.batch_s:
-                yield(np.stack(x), np.stack(y))
+                yield(np.stack(x),  np.stack(y))
                 x.clear()
                 y.clear()
 

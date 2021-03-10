@@ -162,37 +162,8 @@ def visualize_line_detection_result(orig_img, edges, hough_orig, hough_edges, nu
         fig.savefig(output_name)
 
     plt.close()
+
     
-# def plot_metrics_history(metrics_values: dict, output_path: Path):
-#     for metric in metrics_values.keys():
-#         lists = sorted(metrics_values[metric].items())
-#         x, y = zip(*lists)
-#         fig = plt.figure(figsize=(12,6))
-#         plt.plot(x, y, linewidth=3)
-#         plt.suptitle(metric + ' metric over epochs', fontsize=20)
-#         plt.ylabel('metric', fontsize=20)
-#         plt.xlabel('epoch', fontsize=20)
-#         plt.legend([metric], loc='center right', fontsize=15)
-#         fig.savefig(output_path / (metric + '.jpg'))
-
-# def plot_per_class_history(metrics_values: dict, output_path: Path):
-#     epochs = len(metrics_values[0])
-#     fig = plt.figure(figsize=(12,6))
-#     i = 0
-#     for cl in metrics_values.keys():
-#         args = [x+1 for x in range(epochs)]
-#         vals = [y for y in metrics_values[cl]]
-#         data = {x : y for x, y in zip(args, vals)}
-#         lists = sorted(data.items())
-#         x, y = zip(*lists)
-#         plt.plot(x, y, linewidth=3, color=classes_colors[cl])
-#         i +=1
-#     plt.suptitle('metric per class over epochs', fontsize=20)
-#     plt.ylabel('metric', fontsize=20)
-#     plt.xlabel('epoch', fontsize=20)
-#     plt.legend([classes_mask[j] for j in range(i)], loc='center right', fontsize=15)
-#     fig.savefig(output_path / 'per_class_metric.jpg')
-
 def plot_metrics(metrics, metric_name, output_path: Path):
     epochs = len(metrics)
     n_classes = len(metrics[0]) - 1
