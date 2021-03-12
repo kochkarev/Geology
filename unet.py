@@ -27,6 +27,19 @@ def conv2d_block(
         c = BatchNormalization()(c)
     return c
 
+
+def conv2d_res_block(inputs, BN, filters, kernel_size=(3,3), activation='relu', padding='same'):    
+    shortcut = Conv2D(filters, (1, 1), padding=padding) (inputs)
+    shortcut = BatchNormalization()(shortcut)
+    c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=GlorotNormal(), padding=padding) (inputs)
+    if BN:
+        c = BatchNormalization()(c)
+    c = Conv2D(filters, kernel_size, activation=activation, kernel_initializer=GlorotNormal(), padding=padding) (c)
+    if BN:
+        c = BatchNormalization()(c)
+    return c + shortcut
+
+
 def weightedLoss(originalLossFunc, weightsList: List):
 
     def lossFunc(gt, pred):
@@ -80,6 +93,31 @@ def custom_unet(
         x = conv2d_block(inputs=x, filters=filters, use_batch_norm=use_batch_norm)
     
     outputs = Conv2D(n_classes, (1, 1), activation=output_activation) (x)    
+    
+    model = Model(inputs=[inputs], outputs=[outputs])
+    return model
+
+def res_unet(input_shape, n_classes, BN, filters=16, n_layers=4):
+    
+    inputs = Input(input_shape)
+    x = inputs   
+
+    down_layers = []
+    for _ in range(n_layers):
+        x = conv2d_res_block(inputs=x, BN=BN, filters=filters)
+        down_layers.append(x)
+        x = MaxPooling2D((2, 2)) (x)
+        filters = filters * 2 # double the number of filters with each layer
+
+    x = conv2d_res_block(inputs=x, BN=BN, filters=filters)
+
+    for conv_layer in reversed(down_layers):        
+        filters //= 2 # decreasing number of filters with each layer 
+        x = upsample_conv(filters, (2, 2), strides=(2, 2), padding='same') (x)
+        x = concatenate([x, conv_layer])
+        x = conv2d_res_block(inputs=x, BN=BN, filters=filters)
+    
+    outputs = Conv2D(n_classes, (1, 1), activation='softmax') (x)    
     
     model = Model(inputs=[inputs], outputs=[outputs])
     return model

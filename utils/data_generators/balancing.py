@@ -16,7 +16,8 @@ def to_heat_map(img, name='jet'):
 class AutoBalancedPatchGenerator:
 
     def __init__(self, img_dir_path: Path, mask_dir_path: Path, cache_path: Path, patch_size: int, n_classes: int,
-                 distancing, prob_capacity):
+                 distancing, prob_capacity, choose_strict_minority_class=False, alpha=2):
+        assert alpha > 1, 'alpha value should be > 1'
         self.image_dir_path = img_dir_path
         self.mask_dir_path = mask_dir_path
         self.cache_path = cache_path
@@ -25,6 +26,8 @@ class AutoBalancedPatchGenerator:
         self.n_classes = n_classes
         self.distancing = distancing
         self.prob_capacity = prob_capacity
+        self.choose_strict_minority_class = choose_strict_minority_class
+        self.alpha = alpha
         # --- perform initialization ---
         print('Initializing patch generator...')
         self.img_paths = list(img_dir_path.iterdir())
@@ -144,9 +147,20 @@ class AutoBalancedPatchGenerator:
 
 
     def get_patch(self):
-        acc_classes = [(i, acc_px) for i, acc_px in enumerate(self.accumulated_px) if i not in self.missed_classes]
-        cl = min(acc_classes, key=lambda p: p[1])[0]
+        # --- choose class to generate patch ---
+        if self.choose_strict_minority_class:
+            # first way: choose minority class
+            acc_classes = [(i, acc_px) for i, acc_px in enumerate(self.accumulated_px) if i not in self.missed_classes]
+            cl = min(acc_classes, key=lambda p: p[1])[0]
+        else:
+            # second way: choose one from all minorities with some probability
+            probs = [1 / (acc_px ** self.alpha) if acc_px > 0 else 1 for acc_px in self.accumulated_px]
+            probs = [p if i not in self.missed_classes else 0 for i, p in enumerate(probs)]
+            probs_sum = sum(probs)
+            probs = [p / probs_sum for p in probs]
+            cl = np.random.choice(self.n_classes, 1, p=probs)[0]
         # print(f'\t\t choose class {cl}')
+        # --- choose image to extract patch from ---
         img_idx = np.random.choice(self.n_imgs, 1, p=self.image_weights[cl])[0]
         # print(f'image idx: {img_idx}')
         prob_map = self.prob_maps[img_idx][cl]
@@ -161,6 +175,16 @@ class AutoBalancedPatchGenerator:
         for i in range(self.n_classes):
             self.accumulated_px[i] += np.count_nonzero(patch_mask == i)
         return patch_img, patch_mask, cl
+    
+    def get_patch_random(self):
+        img_idx = np.random.randint(self.n_imgs)
+        img = self.imgs[img_idx]
+        mask = self.masks[img_idx]
+        y = np.random.randint(img.shape[0] - self.patch_s)
+        x = np.random.randint(img.shape[1] - self.patch_s)
+        patch_img = img[y : y + self.patch_s, x : x + self.patch_s]
+        patch_mask = mask[y : y + self.patch_s, x : x + self.patch_s]
+        return patch_img, patch_mask
 
     def get_accumulated_distribution(self):
         acc_sum = sum(self.accumulated_px)
@@ -173,8 +197,8 @@ class AutoBalancedPatchGenerator:
             name = f'patch_{i:07d}_cl_{target_class}'
             img_path = out_path / (name + '.png')
             mask_path = out_path / (name + '_m.png')
-            Image.fromarray(patch_img).save(img_path)
-            Image.fromarray(patch_mask).save(mask_path)
+            Image.fromarray((patch_img * 256).astype(np.uint8)).save(img_path)
+            Image.fromarray(patch_mask.astype(np.uint8)).save(mask_path)
             if i % print_distribution_every == 0:
                 print(f'{i} patches generated. Accum: {self.get_accumulated_distribution()}')
 

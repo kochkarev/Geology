@@ -1,11 +1,11 @@
 from utils.data_generators.balancing import AutoBalancedPatchGenerator
-from utils.data_generators.core import SimpleBatchGenerator, _squeeze_mask, recalc_loss_weights
+from utils.data_generators.core import SimpleBatchGenerator, _squeeze_mask, recalc_loss_weights_2
 import numpy as np
 import tensorflow as tf
 from utils.patches import combine_patches, split_to_patches
 from PIL import Image
 from pathlib import Path
-from unet import custom_unet, weightedLoss
+from unet import custom_unet, res_unet, weightedLoss
 from tensorflow.keras.optimizers import Adam
 from tensorflow.keras.utils import to_categorical
 from tensorflow.keras.losses import categorical_crossentropy
@@ -28,23 +28,32 @@ class Model:
             self.class_weights = [1 / self.n_classes] * self.n_classes
 
     def initialize(self, n_filters, n_layers):
-        self.model = custom_unet(
+        # self.model = custom_unet(
+        #     (None, None, 3),
+        #     n_classes=self.n_classes,
+        #     filters=n_filters,
+        #     use_batch_norm=True,
+        #     n_layers=n_layers,
+        #     output_activation='softmax'
+        # )
+        self.model = res_unet(
             (None, None, 3),
             n_classes=self.n_classes,
+            BN=True,
             filters=n_filters,
-            use_batch_norm=True,
             n_layers=n_layers,
-            output_activation='softmax'
         )
 
-        self.model.compile(
-            optimizer=Adam(learning_rate=self.LR), 
-            loss = weightedLoss(categorical_crossentropy, self.class_weights),
-            metrics=[iou_tf]
-        )
+        # self.model.compile(
+        #     optimizer=Adam(learning_rate=self.LR), 
+        #     loss = weightedLoss(categorical_crossentropy, self.class_weights),
+        #     metrics=[iou_tf]
+        # )
 
     def load(self, model_path):
-        self.model = tf.keras.models.load_model(model_path, compile=False)
+        # self.model = tf.keras.models.load_model(model_path, compile=False)
+        self.model.load_weights(model_path)
+
 
     def predict_image(self, img: np.ndarray, overlay):
         patches = split_to_patches(img, self.patch_s, self.offset, overlay=overlay)
@@ -137,7 +146,7 @@ def prepare_experiment(out_path: Path) -> Path:
 n_classes = 13
 n_classes_sq = 7
 patch_s = 256
-batch_s = 6
+batch_s = 12
 n_layers = 4
 n_filters = 8
 LR = 0.001
@@ -149,8 +158,8 @@ pg = AutoBalancedPatchGenerator(
     Path('./cache/maps'),
     patch_s, n_classes, distancing=0.0, prob_capacity=32)
 
-loss_weights = recalc_loss_weights(pg.get_class_weights(remove_missed_classes=True))
-print(f'Loss weights per class: {loss_weights}')
+
+loss_weights = recalc_loss_weights_2(pg.get_class_weights(remove_missed_classes=True))
 
 bg = SimpleBatchGenerator(pg, batch_s, n_classes_sq, squeeze_mask=True, augment=True)
 
@@ -164,9 +173,15 @@ test_data = load_test(
 # model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=None)
 model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=loss_weights)
 model.initialize(n_filters, n_layers)
+model.load(Path('./output/exp_89/models/best.hdf5'))
 
+model.model.compile(
+            optimizer=Adam(learning_rate=LR / 10), 
+            loss = weightedLoss(categorical_crossentropy, loss_weights),
+            metrics=[iou_tf]
+        )
 
-# # --- train model ---
+# # # --- train model ---
 exp_path = prepare_experiment(Path('output'))
-# # model.train(bg.g(), bg.g(), steps_per_epoch=2000, epochs=100, validation_steps=200, test_data=test_data, test_overlay=0.0, test_output=exp_path)
-model.train(bg.g(), bg.g(), steps_per_epoch=200, epochs=20, validation_steps=20, test_data=test_data, test_overlay=0.0, test_output=exp_path, test_vis=True)
+# # # model.train(bg.g(), bg.g(), steps_per_epoch=2000, epochs=100, validation_steps=200, test_data=test_data, test_overlay=0.0, test_output=exp_path)
+model.train(bg.g_balanced(), bg.g_random(), steps_per_epoch=375, epochs=70, validation_steps=30, test_data=test_data, test_overlay=0.0, test_output=exp_path, test_vis=True)

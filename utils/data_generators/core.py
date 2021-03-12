@@ -27,6 +27,15 @@ def recalc_loss_weights(class_weights: List) -> List:
     loss_w = [w / s for w in loss_w]
     return loss_w
 
+
+def recalc_loss_weights_2(class_weights: List, delta=0.5) -> List:
+    assert not any(w == 0 for w in class_weights)
+    w_src = class_weights
+    w_dst = [1 / w for w in class_weights]
+    w_res = [w_src[i] + (w_dst[i] - w_src[i]) * delta for i in range(len(w_src))]
+    s = sum(w_res)
+    return [w / s for w in w_res]
+
 class SimpleBatchGenerator:
 
     def __init__(self, patch_generator, batch_s, n_classes, squeeze_mask, augment=True) -> None:
@@ -48,10 +57,13 @@ class SimpleBatchGenerator:
             y = np.flip(y, 1)
         return x, y
 
-    def g(self):
+    def g(self, random):
         x, y = [], []
         while True:
-            img, mask, _ = self.patch_generator.get_patch()
+            if not random:
+                img, mask, _ = self.patch_generator.get_patch()
+            else:
+                img, mask = self.patch_generator.get_patch_random()
             if self.squeeze_mask:
                 mask = _squeeze_mask(mask)
             mask = to_categorical(mask, self.n_classes)
@@ -64,3 +76,8 @@ class SimpleBatchGenerator:
                 x.clear()
                 y.clear()
 
+    def g_random(self):
+        return self.g(True)
+
+    def g_balanced(self):
+        return self.g(False)
