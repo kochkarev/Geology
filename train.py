@@ -24,10 +24,13 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     
     print('Loading images and masks..')
     t1 = time()
-    x_train, x_test, y_train, y_test, train_names, test_names = get_imgs_masks(path, True, True)
+    x_train, x_test, y_train, y_test, train_names, test_names = get_imgs_masks(os.path.join(path, "S1_v1"), load_test=True, return_names=True)
     t2 = time()
     print(f'Images and masks load time: {t2-t1} seconds')
     print(x_train.shape, y_train.shape, x_test.shape, y_test.shape)
+
+    print(f'Num of classes: {n_classes}')
+    print(f'Classes ids: {np.unique(y_train)}')
 
     print('Train data size: {} images and {} masks'.format(x_train.shape[0], y_train.shape[0]))
     print('Test data size: {} images and {} masks'.format(x_test.shape[0], y_test.shape[0]))
@@ -38,15 +41,16 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
     # print('Computing weights..')
     # t1 = time()
-    # class_weights = class_weight.compute_class_weight('balanced', np.unique(y_train), y_train.flatten())
+    # class_weights = class_weight.compute_class_weight('balanced', classes=np.unique(y_train), y=y_train.flatten())
     # t2 = time()
     # class_weights = dict(enumerate(class_weights))
+    # print(class_weights)
     # print(f'Weights computed in {t2 - t1} seconds')
 
-    weights = np.zeros((batch_size, patch_size, patch_size, n_classes), dtype=np.float32)
-    for cls_num in classes_weights:
-        weights[...,cls_num] = np.full((patch_size, patch_size), classes_weights[cls_num], dtype=np.float32)
-    print(f'Weights: {classes_weights}')
+    # weights = np.zeros((batch_size, patch_size, patch_size, n_classes), dtype=np.float32)
+    # for cls_num in classes_weights:
+    #     weights[...,cls_num] = np.full((patch_size, patch_size), classes_weights[cls_num], dtype=np.float32)
+    # print(f'Weights: {classes_weights}')
 
     y_train = to_categorical(y_train, num_classes=n_classes).astype(np.uint8)
     y_test = to_categorical(y_test, num_classes=n_classes).astype(np.uint8)
@@ -54,9 +58,9 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
     input_shape = (patch_size, patch_size, 3)
     initial_epoch = 0
 
-    custom_loss = functools.partial(losses.weighted_dice_loss, weights=weights)
-    # custom_loss = functools.partial(losses.cce_dice_loss)
-    custom_loss.__name__ = 'weighted_dice_loss'
+    # custom_loss = functools.partial(losses.weighted_dice_loss, weights=weights)
+    custom_loss = functools.partial(losses.cce_dice_loss)
+    custom_loss.__name__ = 'cce_dice_loss'
 
     model = custom_unet(
         input_shape,
@@ -140,7 +144,7 @@ def train(n_classes, n_layers, n_filters, path, epochs, batch_size, patch_size, 
 
     train_generator = PatchGenerator(images=x_train, masks=y_train, names=train_names, patch_size=patch_size, batch_size=batch_size, full_augment=train_params["full_augment"], balanced=True)
 
-    # steps_per_epoch = 50
+    steps_per_epoch = 10
     history = model.fit(
         iter(train_generator),
         steps_per_epoch=steps_per_epoch,
@@ -160,6 +164,9 @@ if __name__ == "__main__":
         if os.path.exists(train_params["output_path"]):
             shutil.rmtree(train_params["output_path"])
     os.makedirs(train_params["model_path"], exist_ok=True)
+
+    print('Training params:')
+    print(train_params)
 
     train(n_classes=len(classes_mask.keys()), n_layers=train_params["n_layers"], 
             n_filters=train_params["n_filters"], epochs=train_params["epochs"], 

@@ -1,32 +1,38 @@
 import numpy as np
 import glob
 from PIL import Image
-import os
+from os import listdir
+from os.path import join, isfile, basename
 import json
 import skimage.io as io
 from config import classes_mask
 
 # depricated
-def _get_imgs_masks(path):
-    masks = glob.glob(path)
-    imgs = list(map(lambda x: x.replace("_NEW.png", ".jpg"), masks))
-    imgs_list = []
-    masks_list = []
-    for image, mask in zip(imgs, masks):
-        imgs_list.append(np.array(Image.open(image)))
-        masks_list.append(np.array(Image.open(mask))[...,0]) 
+# def _get_imgs_masks(path):
+#     masks = glob.glob(path)
+#     imgs = list(map(lambda x: x.replace("_NEW.png", ".jpg"), masks))
+#     imgs_list = []
+#     masks_list = []
+#     for image, mask in zip(imgs, masks):
+#         imgs_list.append(np.array(Image.open(image)))
+#         masks_list.append(np.array(Image.open(mask))[...,0]) 
 
-    return imgs_list, masks_list
+#     return imgs_list, masks_list
 
 def get_imgs_masks(path: str, load_test: bool = True, return_names: bool = False):
 
-    with open(os.path.join("input", "dataset.json")) as dataset_json:
-        names = json.load(dataset_json)
-    train_names = names["BoxA_DS1"]["train"]
-    test_names = names["BoxA_DS1"]["test"]
+    train_imgs_path = join(path, "imgs", "train")
+    train_masks_path = join(path, "masks", "train")
+    test_imgs_path = join(path, "imgs", "test")
+    test_masks_path = join(path, "masks", "test")
 
-    n_train, n_test = len(train_names), len(test_names)
-    img_shape = np.array(Image.open(os.path.join(path, train_names[0]))).shape
+    train_imgs_names = [f for f in listdir(train_imgs_path) if isfile(join(train_imgs_path, f))]
+    train_masks_names = [f for f in listdir(train_masks_path) if isfile(join(train_masks_path, f))]
+    test_imgs_names = [f for f in listdir(test_imgs_path) if isfile(join(test_imgs_path, f))]
+    test_masks_names = [f for f in listdir(test_masks_path) if isfile(join(test_masks_path, f))]
+
+    n_train, n_test = len(train_imgs_names), len(test_imgs_names)
+    img_shape = np.array(Image.open(join(train_imgs_path, train_imgs_names[0]))).shape
 
     train_data = np.zeros([n_train, img_shape[0], img_shape[1], 3], dtype=np.float32)
     train_masks = np.zeros([n_train, img_shape[0], img_shape[1]], dtype=np.uint8)
@@ -37,21 +43,26 @@ def get_imgs_masks(path: str, load_test: bool = True, return_names: bool = False
         test_data = None
         test_masks = None
 
-    for i, train_name in enumerate(train_names):
-        train_data[i, ...] = np.array(Image.open(os.path.join(path, train_name))).astype(np.float32) / 255
-        train_masks[i, ...] = np.array(Image.open(os.path.join(path, train_name.replace(".jpg", "_NEW.png"))))[..., 0]
+    for i, name in enumerate(train_imgs_names):
+        train_data[i, ...] = np.array(Image.open(join(train_imgs_path, name))).astype(np.float32) / 255
+    for i, name in enumerate(train_masks_names):
+        train_masks[i, ...] = np.array(Image.open(join(train_masks_path, name)))[..., 0]
     if load_test:
-        for i, test_name in enumerate(test_names):
-            test_data[i, ...] = np.array(Image.open(os.path.join(path, test_name))).astype(np.float32) / 255
-            test_masks[i, ...] = np.array(Image.open(os.path.join(path, test_name.replace(".jpg", "_NEW.png"))))[..., 0]
+        for i, name in enumerate(test_imgs_names):
+            test_data[i, ...] = np.array(Image.open(join(test_imgs_path, name))).astype(np.float32) / 255
+        for i, name in enumerate(test_masks_names):
+            test_masks[i, ...] = np.array(Image.open(join(test_masks_path, name)))[..., 0]
+    
+    return (train_data, test_data, train_masks, test_masks) if (not return_names) else \
+        (train_data, test_data, train_masks, test_masks, train_imgs_names, test_imgs_names)
 
-    return (train_data, test_data, train_masks, test_masks) if (not return_names) else (train_data, test_data, train_masks, test_masks, train_names, test_names)
+    
 
 def get_unmarked_images(path, marked_path):
-    marked = glob.glob(os.path.join(marked_path, "*.jpg"))
-    all_images = glob.glob(os.path.join(path, "*.jpg"))
-    unmarked = set([os.path.basename(img) for img in all_images]) - set([os.path.basename(img) for img in marked])
-    return [img for img in all_images if os.path.basename(img) in unmarked]
+    marked = glob.glob(join(marked_path, "*.jpg"))
+    all_images = glob.glob(join(path, "*.jpg"))
+    unmarked = set([basename(img) for img in all_images]) - set([basename(img) for img in marked])
+    return [img for img in all_images if basename(img) in unmarked]
 
 def get_pairs_from_paths(path):
 	images = glob.glob(os.path.join(path,"*.jpg"))

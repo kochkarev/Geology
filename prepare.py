@@ -1,17 +1,17 @@
 import os
 from utils import create_heatmaps
 from data_utils import generate_lists_mineral
-from scripts.make_dataset import make_dataset
+# from scripts.make_dataset import make_dataset
 from config import train_params, classes_mask
 
 if __name__ == "__main__":
 
     # Creating dataset
-    input_path=train_params["dataset_path"]
-    if not os.path.exists(input_path):
-        make_dataset()
-    else:
-        print(f'Skipping dataset generation. To regenerate delete directory {input_path}')
+    input_path = os.path.join(train_params["dataset_path"], "S1_v1")
+    # if not os.path.exists(input_path):
+    #     make_dataset()
+    # else:
+    #     print(f'Skipping dataset generation. To regenerate delete directory {input_path}')
 
     # Generating heatmaps
     output_path = train_params["heatmaps_input"]

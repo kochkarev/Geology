@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from data_utils import get_pairs_from_paths
 import os
+from os import listdir
 from PIL import Image
 import shutil
 from config import classes_colors, classes_mask
@@ -243,7 +244,7 @@ def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path
     mask = np.array(Image.open(os.path.join(input_path, input_img)))[:,:,0]
     masks = to_categorical(mask, num_classes=num_classes, dtype=np.uint8)
 
-    input_img = input_img.replace('_NEW.png', '')
+    input_img = input_img.replace('.png', '')
     dts = []
     for i in range(num_classes):
         dt = distance_transform_edt(1-masks[:,:,i])
@@ -275,12 +276,11 @@ def create_heatmap(num_classes: int, patch_size: int, input_img: str, input_path
 
 def create_heatmaps(num_classes: int, patch_size: int, input_path: str, output_path: str, vis_path: str, visualize: bool = False):
 
-    with open(os.path.join("input", "dataset.json")) as dataset_json:
-        names = json.load(dataset_json)
-    marked_images = names["BoxA_DS1"]["marked"]
+    train_masks_path = os.path.join(input_path, "masks", "train")
+    train_masks_names = [f for f in listdir(train_masks_path) if os.path.isfile(os.path.join(train_masks_path, f))]
 
     print('Generating heatmaps..')
-    for mask in marked_images:
+    for mask in train_masks_names:
         print(f'    Creating heatmap for {mask}')
-        create_heatmap(num_classes, patch_size, mask.replace(".jpg", "_NEW.png"), input_path, output_path, vis_path, visualize)
+        create_heatmap(num_classes, patch_size, mask, train_masks_path, output_path, vis_path, visualize)
     print(f'Heatmap ndarrays saved in {output_path}. Visualization saved in {vis_path}')

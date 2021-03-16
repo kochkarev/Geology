@@ -1,20 +1,35 @@
 import os
 
 classes_mask = {
-    0 : "Other",
-    1 : "Sh",
-    2 : "PyMrc",
-    3 : "Gl"
+    0 : "BG",
+    1 : "Ccp",
+    2 : "Gl",
+    3 : "Mag",
+    4 : "Brt",
+    5 : "Po",
+    6 : "PyMrc",
+    7 : "Pn",
+    8 : "Sph",
+    9 : "Apy",
+    10 : "Hem",
+    11 : "TntTtr",
+    12 : "Kvl"
 }
 
 classes_colors = {
-    "Other" : "#000000",
-    "Sh" : "#FFA500",
-    "PyMrc" : "#F08080",
-    "Gl" : "#20B2AA",
-    "Tnt" : "#FF69B4",
-    "Cch" : "#ADFF2F",
-    "Br" : "#4B0082"
+    "BG" : "#000000",
+    "Ccp" : "#ff0000",
+    "Gl" : "#cbff00",
+    "Mag" : "#00ff66",
+    "Brt" : "#0065ff",
+    "Po" : "#cc00ff",
+    "PyMrc" : "#ff4c4c",
+    "Pn" : "#dbff4c",
+    "Sph" :	"#4cff93",
+    "Apy" : "#4c93ff",
+    "Hem" :	"#db4cff",
+    "TntTtr" :	"#ff9999",
+    "Kvl" :	"#eaff99"
 }
 
 classes_weights = {
@@ -27,7 +42,7 @@ classes_weights = {
 train_params = {
     "n_layers" : 4,
     "n_filters" : 16,
-    "epochs" : 100,
+    "epochs" : 2,
     "aug_factor" : 5,
     "dataset_path" : os.path.join('input', 'dataset'),
     "batch_size" : 32,
