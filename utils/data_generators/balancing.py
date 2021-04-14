@@ -253,10 +253,10 @@ pg = AutoBalancedPatchGenerator(
     256, n_classes=13, distancing=0.5, prob_capacity=32, mixin_random_every=5, vis_path=Path('.\\cache\\vis\\'))
 
 
-n1 = 1000
-n2 = 30
-for i in range(n2):
-    for j in tqdm(range(n1), 'extracting patches'):
-        p = pg.get_patch()
-    pg.print_accumulators_info()
-    pg.vis_accumulators(i)
+# n1 = 1000
+# n2 = 30
+# for i in range(n2):
+#     for j in tqdm(range(n1), 'extracting patches'):
+#         p = pg.get_patch()
+#     pg.print_accumulators_info()
+#     pg.vis_accumulators(i)
