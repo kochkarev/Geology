@@ -193,7 +193,7 @@ class AutoBalancedPatchGenerator:
         self._update_accumulators(img_idx, y, x, patch_mask, cl)
         return patch_img, patch_mask, cl
     
-    def get_patch_random(self):
+    def get_patch_random(self, update_accumulators=True):
         img_idx = np.random.randint(self.n_imgs)
         img = self.imgs[img_idx]
         mask = self.masks[img_idx]
@@ -201,8 +201,9 @@ class AutoBalancedPatchGenerator:
         x = np.random.randint(img.shape[1] - self.patch_s)
         patch_img = img[y : y + self.patch_s, x : x + self.patch_s]
         patch_mask = mask[y : y + self.patch_s, x : x + self.patch_s]
-        self._update_accumulators(img_idx, y, x, patch_mask)
-        return patch_img, patch_mask
+        if update_accumulators:
+            self._update_accumulators(img_idx, y, x, patch_mask)
+        return patch_img, patch_mask, None
 
     def _update_accumulators(self, img_idx, y, x, patch_mask, cl=-1):
         for i in range(self.n_classes):
@@ -246,11 +247,11 @@ class AutoBalancedPatchGenerator:
         return weights
 
 
-pg = AutoBalancedPatchGenerator(
-    Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\train\\'),
-    Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\train\\'),
-    Path('.\\cache\\maps\\'),
-    256, n_classes=13, distancing=0.5, prob_capacity=32, mixin_random_every=5, vis_path=Path('.\\cache\\vis\\'))
+# pg = AutoBalancedPatchGenerator(
+#     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\train\\'),
+#     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\train\\'),
+#     Path('.\\cache\\maps\\'),
+#     256, n_classes=13, distancing=0.5, prob_capacity=32, mixin_random_every=5, vis_path=Path('.\\cache\\vis\\'))
 
 
 # n1 = 1000

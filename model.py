@@ -137,6 +137,7 @@ def load_test(imgs_path, masks_path, n_classes, squeeze=True):
 def prepare_experiment(out_path: Path) -> Path:
     out_path.mkdir(parents=True, exist_ok=True)
     dirs = list(out_path.iterdir())
+    dirs = [d for d in dirs if d.name.startswith('exp_')]
     experiment_id = max(int(d.name.split('_')[1]) for d in dirs) + 1 if dirs else 1
     exp_path = out_path / f'exp_{experiment_id}'
     exp_path.mkdir()
@@ -151,15 +152,24 @@ n_layers = 4
 n_filters = 8
 LR = 0.001
  
+exp_path = prepare_experiment(Path('output'))
+
 
 pg = AutoBalancedPatchGenerator(
-    Path('./data/LumenStone/S1/v1/imgs/train'),
-    Path('./data/LumenStone/S1/v1/masks/train'),
-    Path('./cache/maps'),
-    patch_s, n_classes, distancing=0.0, prob_capacity=32)
+    Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\train\\'),
+    Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\train\\'),
+    Path('.\\cache\\maps\\'),
+    patch_s, n_classes=n_classes, distancing=0.5, prob_capacity=32, mixin_random_every=5)
 
 
-loss_weights = recalc_loss_weights_2(pg.get_class_weights(remove_missed_classes=True))
+# pg = AutoBalancedPatchGenerator(
+#     Path('./data/LumenStone/S1/v1/imgs/train'),
+#     Path('./data/LumenStone/S1/v1/masks/train'),
+#     Path('./cache/maps'),
+#     patch_s, n_classes, distancing=0.0, prob_capacity=32)
+
+
+# loss_weights = recalc_loss_weights_2(pg.get_class_weights(remove_missed_classes=True))
 
 bg = SimpleBatchGenerator(pg, batch_s, n_classes_sq, squeeze_mask=True, augment=True)
 
@@ -170,18 +180,19 @@ test_data = load_test(
     n_classes=n_classes_sq, squeeze=True
 )
 
-# model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=None)
-model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=loss_weights)
+model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=None)
+# model = Model(patch_s, batch_s, offset=8, n_classes=n_classes_sq, LR=LR, class_weights=loss_weights)
 model.initialize(n_filters, n_layers)
-model.load(Path('./output/exp_89/models/best.hdf5'))
+# model.load(Path('./output/exp_89/models/best.hdf5'))
 
 model.model.compile(
-            optimizer=Adam(learning_rate=LR / 10), 
-            loss = weightedLoss(categorical_crossentropy, loss_weights),
+            optimizer=Adam(learning_rate=LR), 
+            # loss = weightedLoss(categorical_crossentropy, loss_weights),
+            loss = categorical_crossentropy,
             metrics=[iou_tf]
         )
 
 # # # --- train model ---
-exp_path = prepare_experiment(Path('output'))
-# # # model.train(bg.g(), bg.g(), steps_per_epoch=2000, epochs=100, validation_steps=200, test_data=test_data, test_overlay=0.0, test_output=exp_path)
-model.train(bg.g_balanced(), bg.g_random(), steps_per_epoch=375, epochs=70, validation_steps=30, test_data=test_data, test_overlay=0.0, test_output=exp_path, test_vis=True)
+# exp_path = prepare_experiment(Path('output'))
+model.train(bg.g_balanced(), bg.g_random(), steps_per_epoch=2000, epochs=100, validation_steps=200, test_data=test_data, test_overlay=0.0, test_output=exp_path, test_vis=True)
+# model.train(bg.g_balanced(), bg.g_random(), steps_per_epoch=375, epochs=70, validation_steps=30, test_data=test_data, test_overlay=0.0, test_output=exp_path, test_vis=True)

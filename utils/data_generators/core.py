@@ -63,7 +63,7 @@ class SimpleBatchGenerator:
             if not random:
                 img, mask, _ = self.patch_generator.get_patch()
             else:
-                img, mask = self.patch_generator.get_patch_random()
+                img, mask, _ = self.patch_generator.get_patch_random(update_accumulators=False)
             if self.squeeze_mask:
                 mask = _squeeze_mask(mask)
             mask = to_categorical(mask, self.n_classes)
