@@ -6,6 +6,10 @@ from pathlib import Path
 import hashlib
 from tqdm import tqdm
 from scipy.ndimage import gaussian_filter
+import time
+import skimage.measure
+import gc
+
 
 
 def to_heat_map(img, name='jet'):
@@ -21,7 +25,11 @@ def to_heat_map(img, name='jet'):
 class AutoBalancedPatchGenerator:
 
     def __init__(self, img_dir_path: Path, mask_dir_path: Path, cache_path: Path, patch_size: int, n_classes: int,
-                 distancing, prob_capacity, choose_strict_minority_class=False, alpha=2, beta=3, hash_length=8, mixin_random_every=0, vis_path=None):
+                 prob_downscale_factor: int = 1, prob_downscale_func='max',
+                 distancing=0.5, choose_strict_minority_class=False,
+                 alpha=2, beta=3, hash_length=8, mixin_random_every=0, vis_path=None, quiet=True):
+        assert prob_downscale_factor in (1, 2, 3, 4), f'downscale factor can be 1, 2, 3, 4'
+        assert prob_downscale_func in ('max', 'mean')
         assert alpha > 1, 'alpha value should be > 1'
         self.image_dir_path = img_dir_path
         self.mask_dir_path = mask_dir_path
@@ -29,8 +37,9 @@ class AutoBalancedPatchGenerator:
         cache_path.mkdir(parents=True, exist_ok=True)
         self.patch_s = patch_size
         self.n_classes = n_classes
+        self.prob_dx_factor = prob_downscale_factor
+        self.prob_dx_func = prob_downscale_func
         self.distancing = distancing
-        self.prob_capacity = prob_capacity
         self.choose_strict_minority_class = choose_strict_minority_class
         self.alpha = alpha
         self.beta = beta
@@ -45,7 +54,7 @@ class AutoBalancedPatchGenerator:
         # --- load all images, masks and prob maps ---
         self.imgs = self._load_imgs()
         self.masks = self._load_masks()
-        self.prob_maps = self._load_maps(quiet=True)
+        self.prob_maps = self._load_maps(quiet=quiet)
         self.n_imgs = len(self.mask_paths)
         # --- calculate weights of images ---
         self.image_weights = self._calc_image_weights(self.masks)
@@ -57,6 +66,11 @@ class AutoBalancedPatchGenerator:
         self.accumulated_patches_per_image = [0] * self.n_imgs
         self.accumulated_px_per_class = [0] * n_classes
         self.accumulated_image_maps = [np.zeros(img.shape[:2], dtype=np.uint32) for img in self.imgs]
+        # --- initialize benchmarks timing ---
+        self._t_class_select = 0
+        self._t_img_select = 0
+        self._t_patch_extract = 0
+        self._t_update_accumulators = 0
         print('Initializing patch generator finished.')
 
     def _load_imgs(self):
@@ -70,6 +84,7 @@ class AutoBalancedPatchGenerator:
     def _load_maps(self, quiet):
         print('\t Loading probability maps...')
         maps = [self._get_prob_map(p, quiet) for p in tqdm(self.mask_paths)]
+        gc.collect()
         print('\t Postprocessing probability maps...')
         maps = [self._postprocess_prob_map(pm, distancing=self.distancing) for pm in tqdm(maps)]
         return maps
@@ -92,20 +107,49 @@ class AutoBalancedPatchGenerator:
                 missed.append(cl)
         return missed
 
+    @staticmethod
+    def _downscale_prob_map(prob_map: np.ndarray, factor: int, pool_function='mean'):
+        assert pool_function in ('mean', 'max')
+        if factor == 1:
+            return prob_map
+        f = {'mean': np.mean, 'max': np.max}[pool_function]
+        n = len(prob_map)
+        pm_downscaled = [None] * n
+        for i in range(n):
+            if prob_map[i] is not None:
+                pm_downscaled[i] = skimage.measure.block_reduce(prob_map[i], (factor, factor), f)
+                pm_downscaled[i] /= np.sum(pm_downscaled[i])
+        return pm_downscaled
+
     def _get_prob_map(self, mask_path: Path, quiet=True):
+        self.cache_path.mkdir(exist_ok=True)
         hash = int(hashlib.sha256(str(mask_path).encode('utf-8')).hexdigest(), 16) % (10 ** self.hash_length)
-        prob_name = f'{hash}_{self.patch_s}_{self.prob_capacity}.npz'
-        prob_path = self.cache_path / prob_name
-        if prob_path.exists():
-            return np.load(prob_path, allow_pickle=True)['prob_maps']
+        downscale_suffix = '' if self.prob_dx_factor == 1 else f'_dx{self.prob_dx_factor}_{self.prob_dx_func}'
+        prob_name_full = f'{hash}_{self.patch_s}.npz'
+        prob_name_downscaled = f'{hash}_{self.patch_s}{downscale_suffix}.npz'
+        if (self.cache_path / prob_name_downscaled).exists():
+            # --- prob map at needed scale found in cache ---
+            return np.load(self.cache_path / prob_name_downscaled, allow_pickle=True)['prob_maps']
+        elif (self.cache_path / prob_name_full).exists():
+            # --- prob map at needed scale not found in cache, but full prob map exists ---
+            if not quiet:
+                print(f'\t\t Probability map for {mask_path} found in cache, but at a wrong scale. Calculating...')
+            pm_full = np.load(self.cache_path / prob_name_full, allow_pickle=True)['prob_maps']
+            pm_downscaled = self._downscale_prob_map(pm_full, self.prob_dx_factor)
+            np.savez_compressed(self.cache_path / prob_name_downscaled, prob_maps=pm_downscaled)
+            return pm_downscaled
         else:
             if not quiet:
                 print(f'\t\t Probability map for {mask_path} not found in cache. Calculating...')
-            pp_map = self.calculate_prob_map(mask_path, self.n_classes, self.patch_s, self.prob_capacity, self.vis_path)
-            if not self.cache_path.exists():
-                self.cache_path.mkdir()
-            np.savez_compressed(prob_path, prob_maps=pp_map)  
-            return pp_map
+            pm_full = self.calculate_prob_map(mask_path, self.n_classes, self.patch_s, self.vis_path)
+            np.savez_compressed(self.cache_path / prob_name_full, prob_maps=pm_full)
+            if self.prob_dx_factor != 1: 
+                pm_downscaled = self._downscale_prob_map(pm_full, self.prob_dx_factor, self.prob_dx_func)
+                np.savez_compressed(self.cache_path / prob_name_downscaled, prob_maps=pm_downscaled)
+                del pm_full
+                return pm_downscaled
+            else:
+                return pm_full
 
     @staticmethod
     def _postprocess_prob_map(prob_map, distancing=0.0):
@@ -114,7 +158,6 @@ class AutoBalancedPatchGenerator:
         for m in prob_map:
             if m is not None:
                 mbf = m.astype(np.float32)
-                # mbf = gaussian_filter(mbf, sigma=3.0)
                 new_m = (mbf / np.max(mbf)) ** (1 - 0.9 * distancing)
                 new_m /= np.sum(new_m)
                 res.append(new_m)
@@ -128,8 +171,7 @@ class AutoBalancedPatchGenerator:
         return mask if mask.ndim == 2 else mask[:, :, 0]
 
     @staticmethod
-    def calculate_prob_map(mask_path: Path, n_classes: int, patch_s: int, prob_capacity: int, vis_out_path: Path = None):
-        assert prob_capacity in (32, 64)
+    def calculate_prob_map(mask_path: Path, n_classes: int, patch_s: int, vis_out_path: Path = None):
         mask_name = mask_path.stem
         mask = np.array(Image.open(mask_path)).astype(np.uint8)[:, :, 0]
         patch_prob_maps = []
@@ -152,10 +194,7 @@ class AutoBalancedPatchGenerator:
                 p = (p - min_p) / (max_p - min_p)
                 p = p / np.sum(p) # <----------------- ???
                 # --- quantize p ---
-                if prob_capacity == 32:
-                    p = p.astype(np.float32)
-                elif prob_capacity == 64:
-                    p = p.astype(np.float64)
+                p = p.astype(np.float32)
                 # --- visualize probability map if needed ---
                 if vis_out_path is not None:
                     Image.fromarray(to_heat_map(p)).save(vis_out_path / f"{mask_name}_PPM_cl{cl}_{patch_s}.jpg")
@@ -167,10 +206,11 @@ class AutoBalancedPatchGenerator:
         if self.mixin_random_every > 0 and self.patch_count % self.mixin_random_every == 0:
             return self.get_patch_random()
         else:
-            return self.get_patch_balanced()
+            return self._get_patch_balanced()
 
-    def get_patch_balanced(self):
+    def _get_patch_balanced(self):
         # --- choose class to generate patch ---
+        t = time.perf_counter()
         if self.choose_strict_minority_class:
             # first way: choose minority class
             acc_classes = [(i, acc_px) for i, acc_px in enumerate(self.accumulated_px_per_class) if i not in self.missed_classes]
@@ -180,17 +220,36 @@ class AutoBalancedPatchGenerator:
             probs = [1 / (acc_px ** self.alpha) if acc_px > 0 else 1 for acc_px in self.accumulated_px_per_class]
             probs = [p if i not in self.missed_classes else 0 for i, p in enumerate(probs)]
             probs = np.array(probs) / sum(probs)
-            cl = np.random.choice(self.n_classes, 1, p=probs)[0]        
+            cl = np.random.choice(self.n_classes, 1, p=probs)[0]
+        self._t_class_select += time.perf_counter() - t
         # --- choose image to extract patch from ---
-        img_idx = np.random.choice(self.n_imgs, 1, p=self.image_weights[cl])[0]            
+        t = time.perf_counter()
+        img_idx = np.random.choice(self.n_imgs, 1, p=self.image_weights[cl])[0]
+        img = self.imgs[img_idx]
         prob_map = self.prob_maps[img_idx][cl]
+        self._t_img_select += time.perf_counter() - t
+        # --- extract patch ---
+        t = time.perf_counter()
+        
         pos = np.random.choice(prob_map.size, 1, p=prob_map.flatten())[0]
         y = pos // prob_map.shape[1]
         x = pos % prob_map.shape[1]
-        patch_img = self.imgs[img_idx][y : y + self.patch_s, x : x + self.patch_s]
+
+        if self.prob_dx_factor > 1:
+            y_shift = np.random.randint(self.prob_dx_factor)
+            x_shift = np.random.randint(self.prob_dx_factor)
+            y = y * self.prob_dx_factor + y_shift
+            x = x * self.prob_dx_factor + x_shift
+            y = min(img.shape[0] - self.patch_s, y)
+            x = min(img.shape[1] - self.patch_s, x)
+        
+        patch_img = img[y : y + self.patch_s, x : x + self.patch_s]
         patch_mask = self.masks[img_idx][y : y + self.patch_s, x : x + self.patch_s]
+        self._t_patch_extract += time.perf_counter() - t
         # --- update accumulated pixels ---
+        t = time.perf_counter()
         self._update_accumulators(img_idx, y, x, patch_mask, cl)
+        self._t_update_accumulators += time.perf_counter() - t
         return patch_img, patch_mask, cl
     
     def get_patch_random(self, update_accumulators=True):
@@ -246,18 +305,37 @@ class AutoBalancedPatchGenerator:
         weights = [w / s for w in weights]
         return weights
 
+    def benchmark(self, num_patches=100):
+        self._t_class_select = 0
+        self._t_img_select = 0
+        self._t_patch_extract = 0
+        self._t_update_accumulators = 0
+        start_time = time.perf_counter()
+        for _ in range(num_patches):
+            self.get_patch()
+        execution_time = time.perf_counter() - start_time
+        print(f'Execution time: {execution_time}, {execution_time / num_patches} per iteration')
+        print(f'\t class select time: {self._t_class_select}')
+        print(f'\t image select time: {self._t_img_select}')
+        print(f'\t patch extract time: {self._t_patch_extract}')
+        print(f'\t update accums time: {self._t_update_accumulators}')
+
+    def test_extraction_with_visualization(self, epochs, steps):
+        for i in range(epochs):
+            for _ in tqdm(range(steps), 'extracting patches'):
+                self.get_patch()
+            self.print_accumulators_info()
+            self.vis_accumulators(i)
+
+
 
 # pg = AutoBalancedPatchGenerator(
 #     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\train\\'),
 #     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\train\\'),
 #     Path('.\\cache\\maps\\'),
-#     256, n_classes=13, distancing=0.5, prob_capacity=32, mixin_random_every=5, vis_path=Path('.\\cache\\vis\\'))
+#     patch_size=256, prob_downscale_factor=4, prob_downscale_func='mean', quiet=True,
+#     n_classes=13, distancing=0.5, mixin_random_every=5, vis_path=Path('.\\cache\\vis4\\'))
 
+# pg.benchmark(num_patches=1000)
+# pg.test_extraction_with_visualization(epochs=15, steps=1000)
 
-# n1 = 1000
-# n2 = 30
-# for i in range(n2):
-#     for j in tqdm(range(n1), 'extracting patches'):
-#         p = pg.get_patch()
-#     pg.print_accumulators_info()
-#     pg.vis_accumulators(i)
