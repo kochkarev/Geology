@@ -1,25 +1,17 @@
+import gc
+import hashlib
+import time
+from pathlib import Path
+
 import numpy as np
-import matplotlib.pyplot as plt
+import skimage.measure
 from PIL import Image
 from skimage.transform.integral import integral_image
-from pathlib import Path
-import hashlib
+from tensorflow.keras.utils import to_categorical
 from tqdm import tqdm
-from scipy.ndimage import gaussian_filter
-import time
-import skimage.measure
-import gc
 
-
-
-def to_heat_map(img, name='jet'):
-    assert img.ndim == 2, 'shape {} is unsupported'.format(img.shape)
-    img_min, img_max = np.min(img), np.max(img)
-    assert (img_min >= 0.0 and img_max <= 1.0), f'invalid range {img_min} - {img_max}'
-    img = img / img_max if img_max != 0 else img
-    cmap = plt.get_cmap(name)
-    heat_img = cmap(img)[..., 0:3]
-    return (heat_img * 255).astype(np.uint8)
+from .base import get_squeeze_mappings, squeeze_mask
+from .vis import to_heat_map
 
 
 class AutoBalancedPatchGenerator:
@@ -48,8 +40,8 @@ class AutoBalancedPatchGenerator:
         self.vis_path = vis_path
         # --- perform initialization ---
         print('Initializing patch generator...')
-        self.img_paths = sorted(list(img_dir_path.iterdir()))
-        self.mask_paths = sorted(list(mask_dir_path.iterdir()))
+        self.img_paths = sorted(list(img_dir_path.iterdir()))[:10]
+        self.mask_paths = sorted(list(mask_dir_path.iterdir()))[:10]
         assert len(self.img_paths) == len(self.mask_paths), 'number of masks is not equal to number of imgs'
         # --- load all images, masks and prob maps ---
         self.imgs = self._load_imgs()
@@ -58,7 +50,7 @@ class AutoBalancedPatchGenerator:
         self.n_imgs = len(self.mask_paths)
         # --- calculate weights of images ---
         self.image_weights = self._calc_image_weights(self.masks)
-        self.missed_classes = self._get_missed_classes(self.image_weights)
+        self.missed_classes = self._search_for_missed_classes(self.image_weights)
         print(f'\t missed classes: {self.missed_classes}')
         # --- initialize control of accumulated data ---
         self.patch_count = 0
@@ -100,12 +92,15 @@ class AutoBalancedPatchGenerator:
                 image_weights[cl] /= np.sum(image_weights[cl])
         return image_weights
 
-    def _get_missed_classes(self, image_weights: np.ndarray):
+    def _search_for_missed_classes(self, image_weights: np.ndarray):
         missed = []
         for cl in range(self.n_classes):
             if np.sum(image_weights[cl]) == 0:
                 missed.append(cl)
         return missed
+
+    def get_missed_classes(self):
+        return self.missed_classes
 
     @staticmethod
     def _downscale_prob_map(prob_map: np.ndarray, factor: int, pool_function='mean'):
@@ -328,14 +323,49 @@ class AutoBalancedPatchGenerator:
             self.vis_accumulators(i)
 
 
+class SimpleBatchGenerator:
 
-# pg = AutoBalancedPatchGenerator(
-#     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\train\\'),
-#     Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\train\\'),
-#     Path('.\\cache\\maps\\'),
-#     patch_size=256, prob_downscale_factor=4, prob_downscale_func='mean', quiet=True,
-#     n_classes=13, distancing=0.5, mixin_random_every=5, vis_path=Path('.\\cache\\vis4\\'))
+    def __init__(self, patch_generator, batch_s, n_classes, squeeze_mask, augment=True, missed_classes=None) -> None:
+        self.patch_generator = patch_generator
+        self.batch_s = batch_s
+        self.n_classes = n_classes
+        self.squeeze_mask = squeeze_mask
+        self.augment = augment
+        self.mappings = get_squeeze_mappings(n_classes, missed_classes)
 
-# pg.benchmark(num_patches=1000)
-# pg.test_extraction_with_visualization(epochs=15, steps=1000)
+    def _augment(self, x: np.ndarray, y: np.ndarray):
+        n_rot = np.random.randint(0, 4)
+        x = np.rot90(x, n_rot)
+        y = np.rot90(y, n_rot)
+        if np.random.randint(2) == 0:
+            x = np.flip(x, 0)
+            y = np.flip(y, 0)
+        if np.random.randint(2) == 0:
+            x = np.flip(x, 1)
+            y = np.flip(y, 1)
+        return x, y
 
+    def g(self, random):
+        x, y = [], []
+        while True:
+            if not random:
+                img, mask, _ = self.patch_generator.get_patch()
+            else:
+                img, mask, _ = self.patch_generator.get_patch_random(update_accumulators=False)
+            if self.squeeze_mask:
+                mask = squeeze_mask(mask, self.mappings)
+            mask = to_categorical(mask, self.n_classes)
+            if self.augment:
+                img, mask = self._augment(img, mask)
+            x.append(img)
+            y.append(mask)
+            if len(x) == self.batch_s:
+                yield(np.stack(x),  np.stack(y))
+                x.clear()
+                y.clear()
+
+    def g_random(self):
+        return self.g(True)
+
+    def g_balanced(self):
+        return self.g(False)

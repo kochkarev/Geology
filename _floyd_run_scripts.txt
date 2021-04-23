@@ -1,3 +1,0 @@
-floyd run --gpu --env tensorflow-2.2 --data khvostikov/datasets/lumenstone/1:data --data khvostikov/datasets/lumenstone-cache/1:cache "python model.py"
-
-floyd run --gpu --env tensorflow-2.2 --data khvostikov/datasets/lumenstone/1:data --data khvostikov/datasets/lumenstone-cache/1:cache "python model.py"

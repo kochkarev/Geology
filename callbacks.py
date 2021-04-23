@@ -1,17 +1,16 @@
 from pathlib import Path
 from time import time
-from typing import List
 
 import numpy as np
 import tensorflow.keras.backend as K
 from tensorflow.keras.callbacks import Callback
 
 from metrics import calc_metrics
-from utils.core import plot_lrs, plot_metrics, visualize_segmentation_result
+from utils.vis import plot_lrs, plot_metrics, vis_segmentation
 
 
 class TestResults(Callback):
-    def __init__(self, images, masks, names, predict_func, n_classes, batch_size, patch_size, overlay, offset,
+    def __init__(self, images, masks, names, predict_func, n_classes, batch_size, patch_size, patch_overlay, offset,
                  output_path: Path, all_metrics: list, vis: bool):
         self.images = images
         self.masks = masks
@@ -20,7 +19,7 @@ class TestResults(Callback):
         self.n_classes = n_classes
         self.batch_size = batch_size
         self.patch_size = patch_size
-        self.overlay = overlay
+        self.overlay = patch_overlay
         self.offset = offset
         self.output_path = output_path
         self.all_metrics = all_metrics
@@ -50,6 +49,8 @@ class TestResults(Callback):
         
         self.lrs.append(K.eval(self.model.optimizer.lr))
 
+        # --- do predictions ---
+
         preds = []
         metrics_per_image = {m: [] for m in self.all_metrics}
         t1 = time()
@@ -58,11 +59,10 @@ class TestResults(Callback):
             s = f'Testing on {ii+1} of {len(self.images)}'
             print('\n' + s), log.write('\n' + s + '\n')
             # --- do prediction ---
-            pred = self.predict_func(image, self.overlay)
+            pred = self.predict_func(image)
             preds.append(pred)
-            mask_cropped = mask[self.offset : -self.offset, self.offset : -self.offset, ...]
             # --- calc metrics ---
-            metric_maps = calc_metrics(mask_cropped, pred, self.all_metrics)
+            metric_maps = calc_metrics(mask, pred, self.all_metrics, self.offset)
             s = 'Metrics:'
             print('\n' + s), log.write(s + '\n')
             for metric_name, metric_vals in metric_maps.items():
@@ -84,15 +84,14 @@ class TestResults(Callback):
 
         print('Processing visualization:')
         if self.vis:
-            visualize_segmentation_result(np.array([i[self.offset:-self.offset,self.offset:-self.offset,...] * 256 for i in self.images]),
-                    [np.argmax(i[self.offset:-self.offset,self.offset:-self.offset,...], axis=-1) for i in self.masks],
-                    [np.argmax(i, axis=-1) for i in preds], names=self.names, n_classes=self.n_classes, output_path=self.output_path, epoch=epoch)
-            # visualize_pred_heatmaps(predicted, self.n_classes, self.output_path, epoch)
+            for i, image in enumerate(self.images):
+                img = (image * 255).astype(np.uint8)
+                mask = np.argmax(self.masks[i], axis=-1)
+                pred = np.argmax(preds[i], axis=-1).astype(np.uint8)
+                vis_segmentation(img, mask, pred, self.n_classes, self.offset, output_path=self.output_path, epoch=epoch, img_num=i)
         
         for metric_name in self.all_metrics:
             plot_metrics(self.metrics_acc[metric_name], metric_name, self.output_path)
-        # plot_metrics_history(self.metrics_results, self.output_path)
-        # plot_per_class_history(self.metrics_per_cls_res, self.output_path)
         plot_lrs(self.lrs, self.output_path)
         t3 = time()
         print(f'Visualization completed in {t3-t2} seconds')

@@ -3,8 +3,11 @@ from tensorflow.keras import backend as K
 import numpy as np
 
 
-def calc_metrics(gt: np.ndarray, pred: np.ndarray, metrics: List[str]) -> Dict[str, List[float]]:
+def calc_metrics(gt: np.ndarray, pred: np.ndarray, metrics: List[str], offset=0) -> Dict[str, List[float]]:
     assert gt.shape == pred.shape, f'Shapes of gt and pred must be equal. gt: {gt.shape}, pred: {pred.shape}'
+    if offset > 0:
+        gt = gt[offset : -offset, offset : -offset, ...]
+        pred = pred[offset : -offset, offset : -offset, ...]
     metric_mappings = {
         'iou': iou_all,
         'iou_strict': iou_all_strict,
