@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
-from PIL import Image
-from config import classes_colors, classes_mask
 from pathlib import Path
+from typing import Dict
+
+import matplotlib.pyplot as plt
+import numpy as np
+from PIL import Image
 
 
 def hex_to_rgb(hex: str):
@@ -29,19 +30,17 @@ def _fill_offset(arr, offset: int, value: int = 0):
     return arr
 
 
-def colorize_mask(mask: np.ndarray, n_classes: int, offset: int = 0) -> np.ndarray:
+def colorize_mask(mask: np.ndarray, offset: int, codes_to_colors: Dict) -> np.ndarray:
     assert mask.ndim == 2, 'only 2d masks are supported'
     colorized = np.zeros(mask.shape + (3,), dtype=np.uint8)
-    colors = [hex_to_rgb(color) for color in classes_colors]
-    for cl in range(n_classes):
-        v = mask == cl
-        for ch in range(3):
-            colorized[:, :, ch] = v * colors[cl][ch]
+    codes_to_colors_rgb = {code: hex_to_rgb(color) for code, color in codes_to_colors.items()}
+    for code, color in codes_to_colors_rgb.items():
+        colorized[mask == code, :] = color
     colorized = _fill_offset(colorized, offset)
     return colorized
 
 
-def error_mask(img: np.ndarray, pred: np.ndarray, num_classes: int, offset: int = 0) -> np.ndarray:
+def error_mask(img: np.ndarray, pred: np.ndarray, offset: int = 0) -> np.ndarray:
     assert img.ndim == 2 and pred.ndim == 2
     assert img.shape == pred.shape, f'Expected gt and mask with same shape, got {img.shape} and {pred.shape}'
     error_map = img != pred
@@ -58,49 +57,18 @@ def colorize_error_mask(mask: np.ndarray, color_correct=(0, 255, 0), color_error
     return colorized
 
 
-def vis_segmentation(image, mask, pred, n_classes, offset, output_path: Path, epoch: int, img_num: int, alpha=0.75):
-    print(f'image: {np.min(image), np.max(image), np.sum(image), pred.dtype}')
-    print(f'pred: {np.min(pred), np.max(pred), np.sum(pred), pred.dtype}')
-    print(f'mask: {np.min(mask), np.max(mask), np.sum(mask), pred.dtype}')
-    out_folder = output_path / f'epoch_{epoch+1}'
-    mask_colorized = colorize_mask(pred, n_classes=n_classes, offset=offset) 
-    Image.fromarray(mask_colorized).save(out_folder / f'image_{img_num + 1}_pred.jpg')            
-    err_mask = error_mask(mask, pred, num_classes=n_classes, offset=offset)
+def vis_segmentation(image: np.ndarray, mask: np.ndarray, pred: np.ndarray, offset: int, codes_to_colors: Dict,
+                     out_folder: Path, name: str, alpha=0.75):
+    # print(f'image: {np.min(image), np.max(image), np.sum(image), pred.dtype}')
+    # print(f'pred: {np.min(pred), np.max(pred), np.sum(pred), pred.dtype}')
+    # print(f'mask: {np.min(mask), np.max(mask), np.sum(mask), pred.dtype}')
+    mask_colorized = colorize_mask(pred, offset=offset, codes_to_colors=codes_to_colors) 
+    Image.fromarray(mask_colorized).save(out_folder / f'{name}_pred.jpg')            
+    err_mask = error_mask(mask, pred, offset=offset)
     err_vis = colorize_error_mask(err_mask, offset=offset)
-    Image.fromarray(err_vis).save(out_folder / f'image_{img_num + 1}_error.jpg')
+    Image.fromarray(err_vis).save(out_folder / f'{name}_error.jpg')
     overlay = (alpha * image + (1 - alpha) * err_vis).astype(np.uint8)
-    Image.fromarray(overlay).save(out_folder / f'image_{img_num + 1}_overlay.jpg')
-
-    
-def plot_metrics(metrics, metric_name, output_path: Path):
-    epochs = len(metrics)
-    n_classes = len(metrics[0]) - 1
-    
-    # --- per class metric ---
-    fig = plt.figure(figsize=(12,6))
-    # ax = plt.axes()
-    # ax.set_facecolor('white')
-    for cl in range(n_classes):
-        x = [x+1 for x in range(epochs)]
-        y = [metrics[i][cl] for i in range(epochs)]
-        plt.plot(x, y, color=classes_colors[cl])
-    # plt.suptitle(f'{metric_name} per class over epochs', fontsize=20)
-    plt.ylabel(f'{metric_name}', fontsize=20)
-    plt.xlabel('epoch', fontsize=20)
-    plt.legend([classes_mask[j] for j in range(n_classes)], loc='center right', fontsize=15)
-    fig.savefig(output_path / f'{metric_name}_per_class.png')
-    
-    # --- all class metric ---
-    fig = plt.figure(figsize=(12,6))
-    # ax = plt.axes()
-    # ax.set_facecolor('white')
-    x = [x+1 for x in range(epochs)]
-    y = [metrics[i][-1] for i in range(epochs)]
-    plt.plot(x, y)
-    # plt.suptitle(f'{metric_name} over epochs', fontsize=20)
-    plt.ylabel(f'{metric_name}', fontsize=20)
-    plt.xlabel('epoch', fontsize=20)
-    fig.savefig(output_path / f'{metric_name}.png')
+    Image.fromarray(overlay).save(out_folder / f'{name}_overlay.jpg')
 
 
 def plot_lrs(lrs: list, output_path: Path):

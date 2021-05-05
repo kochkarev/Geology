@@ -10,7 +10,7 @@ from skimage.transform.integral import integral_image
 from tensorflow.keras.utils import to_categorical
 from tqdm import tqdm
 
-from .base import get_squeeze_mappings, squeeze_mask
+from .base import squeeze_mask
 from .vis import to_heat_map
 
 
@@ -40,8 +40,8 @@ class AutoBalancedPatchGenerator:
         self.vis_path = vis_path
         # --- perform initialization ---
         print('Initializing patch generator...')
-        self.img_paths = sorted(list(img_dir_path.iterdir()))[:10]
-        self.mask_paths = sorted(list(mask_dir_path.iterdir()))[:10]
+        self.img_paths = sorted(list(img_dir_path.iterdir()))
+        self.mask_paths = sorted(list(mask_dir_path.iterdir()))
         assert len(self.img_paths) == len(self.mask_paths), 'number of masks is not equal to number of imgs'
         # --- load all images, masks and prob maps ---
         self.imgs = self._load_imgs()
@@ -325,13 +325,13 @@ class AutoBalancedPatchGenerator:
 
 class SimpleBatchGenerator:
 
-    def __init__(self, patch_generator, batch_s, n_classes, squeeze_mask, augment=True, missed_classes=None) -> None:
+    def __init__(self, patch_generator, batch_s, n_classes, squeeze_mask, squeeze_mappings=None, augment=True) -> None:
         self.patch_generator = patch_generator
         self.batch_s = batch_s
-        self.n_classes = n_classes
+        self.n_classes = n_classes if not squeeze_mask else len(squeeze_mappings)
         self.squeeze_mask = squeeze_mask
+        self.mappings = squeeze_mappings
         self.augment = augment
-        self.mappings = get_squeeze_mappings(n_classes, missed_classes)
 
     def _augment(self, x: np.ndarray, y: np.ndarray):
         n_rot = np.random.randint(0, 4)

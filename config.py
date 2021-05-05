@@ -1,4 +1,4 @@
-classes_mask_all = [
+class_names = [
     "BG",
     "Ccp",
     "Gl",
@@ -14,17 +14,7 @@ classes_mask_all = [
     "Kvl",
 ]
 
-classes_mask = [
-    'BG',
-    'Ccp',
-    'Gl',
-    'Brt',
-    'Py/Mrc',
-    'Sph',
-    'Tnt/Ttr',
-]
-
-classes_colors_all = [
+class_colors = [
     '#000000',
     '#ff0000',
     '#cbff00',
@@ -40,12 +30,5 @@ classes_colors_all = [
     '#eaff99',
 ]
 
-classes_colors = [
-    '#000000',
-    '#ff0000',
-    '#cbff00',
-    '#0065ff',
-    '#ff4c4c',
-    '#4cff93',
-    '#ff9999'
-]
+lbls_to_colors = {name: class_colors[i] for i, name in enumerate(class_names)}
+codes_to_colors = {i: class_colors[i] for i in range(len(class_names))}

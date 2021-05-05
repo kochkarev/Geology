@@ -1,16 +1,7 @@
 from pathlib import Path
-from typing import Iterable, List
+from typing import List
 
 import numpy as np
-
-
-def get_squeeze_mappings(n_classes: int, missed_classes: Iterable[int]):
-    if missed_classes is None:
-        missed_classes = []
-    old_classes = tuple(i for i in range(n_classes) if i not in missed_classes)
-    new_classes = tuple(range(n_classes - len(missed_classes)))
-    mapping = {cl: new_classes[i]  for i, cl in enumerate(old_classes)}
-    return mapping
 
 
 def squeeze_mask(mask: np.ndarray, mapping):
