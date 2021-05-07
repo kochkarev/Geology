@@ -1,7 +1,20 @@
+from dataclasses import dataclass
 from pathlib import Path
-from typing import List
+from typing import Dict, List
 
 import numpy as np
+from tensorflow.keras.utils import to_categorical
+from tensorflow.python.keras.backend import squeeze
+
+
+@dataclass
+class MaskLoadParams:
+    n_classes: int
+    squeeze: True
+    squeeze_mappings: Dict[int, int]
+
+    def __post_init__(self):
+        self.n_classes = self.n_classes if not squeeze else len(self.squeeze_mappings)
 
 
 def squeeze_mask(mask: np.ndarray, mapping):
@@ -9,6 +22,15 @@ def squeeze_mask(mask: np.ndarray, mapping):
     for i, j in mapping.items():
         new_mask[mask == i] = j
     return new_mask
+
+
+def prepocess_mask(mask: np.ndarray, params: MaskLoadParams):
+    if params.squeeze:
+        mask = squeeze_mask(mask, params.squeeze_mappings)
+    if mask.ndim == 3:
+        mask = mask[:, :, 0]
+    mask = to_categorical(mask, params.n_classes)
+    return mask
 
 
 def get_loss_weights(class_weights: List) -> List:

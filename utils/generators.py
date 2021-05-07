@@ -7,10 +7,9 @@ import numpy as np
 import skimage.measure
 from PIL import Image
 from skimage.transform.integral import integral_image
-from tensorflow.keras.utils import to_categorical
 from tqdm import tqdm
 
-from .base import squeeze_mask
+from .base import MaskLoadParams, prepocess_mask
 from .vis import to_heat_map
 
 
@@ -325,12 +324,10 @@ class AutoBalancedPatchGenerator:
 
 class SimpleBatchGenerator:
 
-    def __init__(self, patch_generator, batch_s, n_classes, squeeze_mask, squeeze_mappings=None, augment=True) -> None:
+    def __init__(self, patch_generator, batch_s, mask_load_p: MaskLoadParams, augment=True) -> None:
         self.patch_generator = patch_generator
         self.batch_s = batch_s
-        self.n_classes = n_classes if not squeeze_mask else len(squeeze_mappings)
-        self.squeeze_mask = squeeze_mask
-        self.mappings = squeeze_mappings
+        self.mask_load_p = mask_load_p
         self.augment = augment
 
     def _augment(self, x: np.ndarray, y: np.ndarray):
@@ -352,9 +349,7 @@ class SimpleBatchGenerator:
                 img, mask, _ = self.patch_generator.get_patch()
             else:
                 img, mask, _ = self.patch_generator.get_patch_random(update_accumulators=False)
-            if self.squeeze_mask:
-                mask = squeeze_mask(mask, self.mappings)
-            mask = to_categorical(mask, self.n_classes)
+            mask = prepocess_mask(mask, self.mask_load_p)
             if self.augment:
                 img, mask = self._augment(img, mask)
             x.append(img)

@@ -1,3 +1,4 @@
+import gc
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, Iterable, List, Tuple, Union
@@ -5,9 +6,11 @@ from typing import Dict, Iterable, List, Tuple, Union
 import matplotlib.pyplot as plt
 import numpy as np
 from metrics import acc, iou, iou_per_class, to_strict
+from PIL import Image
 from tqdm import tqdm
 
-from utils.vis import vis_segmentation
+from .base import MaskLoadParams, prepocess_mask
+from .vis import vis_segmentation
 
 
 @dataclass
@@ -18,6 +21,8 @@ class EvaluationResult:
     iou_strict: float
     acc: float
     pixels_per_class: Union[Dict[str, int], None]
+    iou_per_class_w: Dict[str, float] = None
+    iou_per_class_strict_w: Dict[str, float] = None
 
     def to_str(self, description: str) -> str:
         iou_per_class_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class.items())
@@ -32,6 +37,12 @@ class EvaluationResult:
             f'\t iou_strict per class:\n'
             f'{iou_strict_per_class_str}'
         )
+        if self.iou_per_class_w is not None:
+            iou_w_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class_w.items())
+            s += f'\t iou weighted per class:\n{iou_w_str}'
+        if self.iou_per_class_strict_w is not None:
+            iou_w_strict_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class_strict_w.items())
+            s += f'\t iou_strict weighted per class:\n{iou_w_strict_str}'
         return s
 
 
@@ -68,13 +79,17 @@ class TestEvaluator:
         n = len(self.buffer)
         total_iou_pc = dict()
         total_iou_pc_strict = dict()
+        total_iou_pc_w = dict()
+        total_iou_pc_strict_w = dict()
 
         for _, cl in self.codes_to_lbls.items():
             px_per_image = np.array([e.pixels_per_class[cl] for e in self.buffer])
             s = np.sum(px_per_image)
             px_per_image = px_per_image / s if s > 0 else px_per_image
-            total_iou_pc[cl] = sum(self.buffer[i].iou_per_class[cl] * px_per_image[i] for i in range(n))
-            total_iou_pc_strict[cl] = sum(self.buffer[i].iou_per_class_strict[cl] * px_per_image[i] for i in range(n))
+            total_iou_pc[cl] = sum(self.buffer[i].iou_per_class[cl] * (1 / n) for i in range(n))
+            total_iou_pc_strict[cl] = sum(self.buffer[i].iou_per_class_strict[cl] * (1 / n) for i in range(n))
+            total_iou_pc_w[cl] = sum(self.buffer[i].iou_per_class[cl] * px_per_image[i] for i in range(n))
+            total_iou_pc_strict_w[cl] = sum(self.buffer[i].iou_per_class_strict[cl] * px_per_image[i] for i in range(n))
 
         total_iou = sum(e.iou for e in self.buffer) / n
         total_iou_strict = sum(e.iou_strict for e in self.buffer) / n
@@ -84,7 +99,9 @@ class TestEvaluator:
             iou_per_class=total_iou_pc, iou_per_class_strict=total_iou_pc_strict,
             iou=total_iou, iou_strict=total_iou_strict,
             acc=total_acc,
-            pixels_per_class=None
+            pixels_per_class=None,
+            iou_per_class_w=total_iou_pc_w,
+            iou_per_class_strict_w=total_iou_pc_strict_w,
         )
 
         self.buffer.clear()
@@ -105,19 +122,27 @@ class TestEvaluator:
         multi_class_plot_data = [
             ('iou', self._get_values('iou_per_class')),
             ('iou_strict', self._get_values('iou_per_class_strict')),
+            ('iou_w', self._get_values('iou_per_class_w')),
+            ('iou_strict_w', self._get_values('iou_per_class_strict_w')),
         ]
         return single_class_plot_data, multi_class_plot_data
 
 
 class Tester:
     
-    def __init__(self, evaluator, out_path: Path, codes_to_lbls, lbls_to_colors):
+    def __init__(self, evaluator, out_path: Path, codes_to_lbls, lbls_to_colors, mask_load_p: MaskLoadParams):
         self.evaluator = evaluator
         self.do_visualization = True
         self.out_path = out_path
-        self.codes_tp_lbls = codes_to_lbls
         self.lbls_to_colors = lbls_to_colors
         self.codes_to_colors = {code: lbls_to_colors[lbl] for code, lbl in codes_to_lbls.items()}
+        self.mask_load_p = mask_load_p
+
+    def _load_test_pair(self, img_path: Path, mask_path: Path):
+        img = np.array(Image.open(img_path)).astype(np.float32) / 256
+        mask = np.array(Image.open(mask_path))
+        mask = prepocess_mask(mask, self.mask_load_p)
+        return img, mask
 
     def _visualize(self, img, gt, pred, folder: Path, image_idx):
         if self.do_visualization and img is not None:
@@ -127,19 +152,23 @@ class Tester:
             img_name = f'img_{image_idx}'
             vis_segmentation(img, mask, pred, self.evaluator.offset, self.codes_to_colors, folder, img_name)
 
-    def test_on_set(self, data: Iterable[Tuple[np.ndarray, np.ndarray]], predict_func, description: str) -> EvaluationResult:
+    def test_on_set(self, imgs_folder: Path, masks_folder: Path, predict_func, description: str) -> EvaluationResult:
         out_folder = (self.out_path / description)
         out_folder.mkdir(exist_ok=True, parents=True)
         log = open(self.out_path / 'metrics.txt', "a+")
         log_detailed = open(self.out_path / 'metrics_detailed.txt', "a+")
-        for i, (img, mask) in enumerate(tqdm(data, 'testing')):
+        img_paths = sorted(list(imgs_folder.iterdir()))
+        mask_paths = [masks_folder / (img_path.stem + '.png') for img_path in img_paths]
+        n = len(img_paths)
+        for i in tqdm(range(n), 'testing'):
+            img, mask = self._load_test_pair(img_paths[i], mask_paths[i])
             pred = predict_func(img)
             eval_res = self.evaluator.evaluate(pred, mask)
             eval_res_str = eval_res.to_str(description=f'{description}, image {i + 1}')
-            # print(eval_res_str)
             log_detailed.write(eval_res_str + '\n')
             self._visualize(img, mask, pred, out_folder, i + 1)
         total_eval_res = self.evaluator.flush()
+        gc.collect()
         self._redraw_metric_plots()
         total_eval_res_str = total_eval_res.to_str(description=f'{description}, total')
         print(total_eval_res_str)
