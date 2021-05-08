@@ -1,48 +1,41 @@
 import gc
 from dataclasses import dataclass
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple, Union
+from typing import Dict, Iterable, List, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
-from metrics import acc, iou, iou_per_class, to_strict
+from metrics import acc, iou_per_class, to_strict
 from PIL import Image
 from tqdm import tqdm
 
 from .base import MaskLoadParams, prepocess_mask
 from .vis import vis_segmentation
 
+from metrics import exIoU, exAcc, joint_iou, joint_acc
+
 
 @dataclass
 class EvaluationResult:
-    iou_per_class: Dict[str, float]
-    iou_per_class_strict: Dict[str, float]
-    iou: float
-    iou_strict: float
-    acc: float
-    pixels_per_class: Union[Dict[str, int], None]
-    iou_per_class_w: Dict[str, float] = None
-    iou_per_class_strict_w: Dict[str, float] = None
+    iou_class: Dict[str, exIoU]
+    iou_class_strict: Dict[str, exIoU]
+    mean_iou: float
+    mean_iou_strict: float
+    acc: exAcc
 
     def to_str(self, description: str) -> str:
-        iou_per_class_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class.items())
-        iou_strict_per_class_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class_strict.items())
+        iou_cl_str = ''.join(f'\t\t {cl}: {iou.iou:.4f}\n' for cl, iou in self.iou_class.items())
+        iou_cl_strict_str = ''.join(f'\t\t {cl}: {iou.iou:.4f}\n' for cl, iou in self.iou_class_strict.items())
         s = (
             f'Evaluatoin result ({description}):\n'
-            f'\t iou: {self.iou:.4f}\n'
-            f'\t iou_strict: {self.iou_strict:.4f}\n'
-            f'\t acc: {self.acc:.4f}\n'
+            f'\t mean iou: {self.mean_iou:.4f}\n'
+            f'\t mean iou (strict): {self.mean_iou_strict:.4f}\n'
+            f'\t acc: {self.acc.acc:.4f}\n'
             f'\t iou per class:\n'
-            f'{iou_per_class_str}'
-            f'\t iou_strict per class:\n'
-            f'{iou_strict_per_class_str}'
+            f'{iou_cl_str}'
+            f'\t iou (strict) per class:\n'
+            f'{iou_cl_strict_str}'
         )
-        if self.iou_per_class_w is not None:
-            iou_w_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class_w.items())
-            s += f'\t iou weighted per class:\n{iou_w_str}'
-        if self.iou_per_class_strict_w is not None:
-            iou_w_strict_str = ''.join(f'\t\t {cl}: {iou:.4f}\n' for cl, iou in self.iou_per_class_strict_w.items())
-            s += f'\t iou_strict weighted per class:\n{iou_w_strict_str}'
         return s
 
 
@@ -54,76 +47,74 @@ class TestEvaluator:
         self.buffer: List[EvaluationResult] = []
         self.archive: List[EvaluationResult] = []
 
+    @staticmethod
+    def _mean_iou(ious: Iterable[exIoU], weights=None) -> float:
+        assert weights is None, 'not implemented yet'
+        mean = sum(iou.iou for iou in ious) / len(ious)
+        return mean
+
     def evaluate(self, pred: np.ndarray, gt: np.ndarray) -> EvaluationResult:
         if self.offset > 0:
             gt_cr = gt[self.offset : -self.offset, self.offset : -self.offset, ...]
             pred_cr = pred[self.offset : -self.offset, self.offset : -self.offset, ...]
+        pred_strict = to_strict(pred_cr)
 
-        def to_dict(metric_vals):
+        def to_dict(metric_vals) -> Dict[str, exIoU]:
             return {self.codes_to_lbls[i]: v for i, v in enumerate(metric_vals)}
 
-        pixels_per_class = {self.codes_to_lbls[i]: np.sum(gt_cr[..., i]) for i in range(gt_cr.shape[-1])}
-        pred_strict = to_strict(pred_cr)
+        iou_class = to_dict(iou_per_class(gt_cr, pred_cr))
+        iou_class_strict = to_dict(iou_per_class(gt_cr, pred_strict))
+        mean_iou = self._mean_iou(iou_class.values())
+        mean_iou_strict = self._mean_iou(iou_class_strict.values())                 
+
         eval_res = EvaluationResult(
-            iou_per_class=to_dict(iou_per_class(gt_cr, pred_cr)),
-            iou_per_class_strict=to_dict(iou_per_class(gt_cr, pred_strict)),
-            iou=iou(gt_cr, pred_cr),
-            iou_strict=iou(gt_cr, pred_strict),
-            acc=acc(gt_cr, pred_strict),
-            pixels_per_class=pixels_per_class
+            iou_class=iou_class,
+            iou_class_strict=iou_class_strict,
+            mean_iou=mean_iou,
+            mean_iou_strict=mean_iou_strict,
+            acc=acc(gt_cr, pred_strict)
         )
         self.buffer.append(eval_res)        
         return eval_res
 
     def flush(self) -> EvaluationResult:
-        n = len(self.buffer)
         total_iou_pc = dict()
         total_iou_pc_strict = dict()
-        total_iou_pc_w = dict()
-        total_iou_pc_strict_w = dict()
 
-        for _, cl in self.codes_to_lbls.items():
-            px_per_image = np.array([e.pixels_per_class[cl] for e in self.buffer])
-            s = np.sum(px_per_image)
-            px_per_image = px_per_image / s if s > 0 else px_per_image
-            total_iou_pc[cl] = sum(self.buffer[i].iou_per_class[cl] * (1 / n) for i in range(n))
-            total_iou_pc_strict[cl] = sum(self.buffer[i].iou_per_class_strict[cl] * (1 / n) for i in range(n))
-            total_iou_pc_w[cl] = sum(self.buffer[i].iou_per_class[cl] * px_per_image[i] for i in range(n))
-            total_iou_pc_strict_w[cl] = sum(self.buffer[i].iou_per_class_strict[cl] * px_per_image[i] for i in range(n))
+        for cl in self.codes_to_lbls.values():
+            total_iou_pc[cl] = joint_iou([e.iou_class[cl] for e in self.buffer])
+            total_iou_pc_strict[cl] = joint_iou([e.iou_class_strict[cl] for e in self.buffer])
 
-        total_iou = sum(e.iou for e in self.buffer) / n
-        total_iou_strict = sum(e.iou_strict for e in self.buffer) / n
-        total_acc = sum(e.acc for e in self.buffer) / n
-        
+        total_iou = self._mean_iou(total_iou_pc.values())
+        total_iou_strict = self._mean_iou(total_iou_pc_strict.values())
+        total_acc = joint_acc([e.acc for e in self.buffer])
+
         current_eval_res = EvaluationResult(
-            iou_per_class=total_iou_pc, iou_per_class_strict=total_iou_pc_strict,
-            iou=total_iou, iou_strict=total_iou_strict,
-            acc=total_acc,
-            pixels_per_class=None,
-            iou_per_class_w=total_iou_pc_w,
-            iou_per_class_strict_w=total_iou_pc_strict_w,
+            iou_class=total_iou_pc,
+            iou_class_strict=total_iou_pc_strict,
+            mean_iou=total_iou,
+            mean_iou_strict=total_iou_strict,
+            acc=total_acc
         )
 
         self.buffer.clear()
         self.archive.append(current_eval_res)
         return current_eval_res
 
-    def _get_values(self, metric_name):
+    def _get_values(self, metric_name, sub_name):
         metric_vals = [getattr(e, metric_name) for e in self.archive]
         classes_str = self.codes_to_lbls.values()
-        return {cl_str: [m[cl_str] for m in metric_vals] for cl_str in classes_str}
+        return {cl_str: [getattr(m[cl_str], sub_name) for m in metric_vals] for cl_str in classes_str}
 
     def get_plot_data(self) -> Tuple[List, List]:
         single_class_plot_data = [
-            ('acc', [e.acc for e in self.archive]),
-            ('iou', [e.iou for e in self.archive]),
-            ('iou_strict', [e.iou_strict for e in self.archive]),
+            ('acc', [e.acc.acc for e in self.archive]),
+            ('mean_iou', [e.mean_iou for e in self.archive]),
+            ('mean_iou_strict', [e.mean_iou_strict for e in self.archive]),
         ]
         multi_class_plot_data = [
-            ('iou', self._get_values('iou_per_class')),
-            ('iou_strict', self._get_values('iou_per_class_strict')),
-            ('iou_w', self._get_values('iou_per_class_w')),
-            ('iou_strict_w', self._get_values('iou_per_class_strict_w')),
+            ('iou', self._get_values('iou_class', 'iou')),
+            ('iou_strict', self._get_values('iou_class_strict', 'iou')),
         ]
         return single_class_plot_data, multi_class_plot_data
 

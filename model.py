@@ -142,8 +142,8 @@ model.model.compile(
 )
 
 model.train(
-    # bg.g_balanced(), bg.g_random(), n_steps=800, epochs=50, val_steps=80,
-    bg.g_balanced(), bg.g_random(), n_steps=100, epochs=50, val_steps=80,
+    bg.g_balanced(), bg.g_random(), n_steps=800, epochs=50, val_steps=80,
+    # bg.g_balanced(), bg.g_random(), n_steps=10, epochs=50, val_steps=5,
     test_img_folder=Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\imgs\\test\\'),
     test_mask_folder=Path('c:\\dev\\#data\\LumenStone\\S1\\v1\\masks\\test\\'),
     test_output=exp_path, codes_to_lbls=codes_to_lbls, lbls_to_colors=config.lbls_to_colors,
